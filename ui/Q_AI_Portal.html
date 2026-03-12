@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Q_AI — Interview Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600;1,300&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:        #080b0f;
+  --bg2:       #0c1018;
+  --bg3:       #111720;
+  --bg4:       #161e2a;
+  --line:      #1c2535;
+  --line2:     #243040;
+  --gold:      #e8b84b;
+  --gold2:     #f5d07a;
+  --golddim:   rgba(232,184,75,0.08);
+  --goldglow:  rgba(232,184,75,0.25);
+  --teal:      #38d9c0;
+  --red:       #f04f65;
+  --green:     #36d490;
+  --text:      #c8d8e8;
+  --mid:       #7090a8;
+  --dim:       #344858;
+  --sans:      'IBM Plex Sans', sans-serif;
+  --mono:      'IBM Plex Mono', monospace;
+}
+
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);overflow-x:hidden}
+
+/* scanline texture */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+}
+
+/* ── PAGES ─────────────────────────────────────────── */
+.page{display:none;min-height:100vh;flex-direction:column}
+.page.active{display:flex;animation:fadeUp .4s cubic-bezier(.22,.68,0,1.2) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── TOPBAR ─────────────────────────────────────────── */
+.bar{
+  height:56px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;padding:0 28px;gap:16px;
+  background:var(--bg2);flex-shrink:0;position:sticky;top:0;z-index:100;
+}
+.logotype{
+  font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.04em;
+  color:var(--gold);display:flex;align-items:center;gap:8px;
+}
+.logotype::before{
+  content:'';width:8px;height:8px;border-radius:50%;
+  background:var(--gold);box-shadow:0 0 10px var(--goldglow);
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.bar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+
+/* step track */
+.track{display:flex;align-items:center;gap:0}
+.tstep{
+  display:flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+  padding:5px 14px;color:var(--dim);
+  border:1px solid transparent;transition:all .3s;
+}
+.tstep .tn{
+  width:18px;height:18px;border-radius:50%;border:1px solid var(--dim);
+  display:grid;place-items:center;font-size:9px;transition:all .3s;flex-shrink:0;
+}
+.tstep.done{color:var(--teal)}
+.tstep.done .tn{border-color:var(--teal);background:var(--teal);color:var(--bg)}
+.tstep.active{color:var(--gold);background:var(--golddim);border-color:rgba(232,184,75,.2);border-radius:3px}
+.tstep.active .tn{border-color:var(--gold);background:var(--gold);color:var(--bg)}
+.tdash{width:20px;height:1px;background:var(--line2);flex-shrink:0}
+
+/* ── LAYOUT ─────────────────────────────────────────── */
+.body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px}
+.wrap-sm{max-width:540px;width:100%}
+.wrap-md{max-width:780px;width:100%}
+.wrap-lg{max-width:1000px;width:100%}
+
+/* ── TYPE ───────────────────────────────────────────── */
+.label{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:10px;display:block}
+h2{font-size:clamp(26px,4vw,40px);font-weight:700;color:#fff;line-height:1.2;margin-bottom:10px}
+h2 em{font-style:normal;color:var(--gold)}
+.lead{font-size:14px;color:var(--mid);line-height:1.75;margin-bottom:32px}
+
+/* ── INPUTS ─────────────────────────────────────────── */
+.field{margin-bottom:18px}
+.field label{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--mid);display:block;margin-bottom:7px}
+input[type=text]{
+  width:100%;background:var(--bg3);border:1px solid var(--line2);
+  color:var(--text);padding:12px 16px;font-family:var(--mono);font-size:13px;
+  outline:none;transition:border-color .2s,box-shadow .2s;border-radius:2px;
+}
+input[type=text]:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--golddim)}
+input[type=text]::placeholder{color:var(--dim)}
+
+/* ── BUTTONS ─────────────────────────────────────────── */
+.btn{
+  font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;
+  padding:13px 28px;border:none;cursor:pointer;border-radius:2px;
+  display:inline-flex;align-items:center;gap:10px;transition:all .2s;
+}
+.btn-primary{background:var(--gold);color:#000;font-weight:600}
+.btn-primary:hover:not(:disabled){background:var(--gold2);box-shadow:0 0 32px var(--goldglow);transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.3;cursor:not-allowed}
+.btn-ghost{background:transparent;border:1px solid var(--line2);color:var(--mid)}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.btn-teal{background:rgba(56,217,192,.1);border:1px solid rgba(56,217,192,.3);color:var(--teal)}
+.btn-teal:hover{background:rgba(56,217,192,.18);box-shadow:0 0 20px rgba(56,217,192,.15)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-block{width:100%;justify-content:center;padding:16px 28px;font-size:12px}
+
+/* ── CARDS ──────────────────────────────────────────── */
+.card{background:var(--bg2);border:1px solid var(--line);padding:24px;border-radius:3px}
+.card-row{display:flex;align-items:center;gap:16px;padding:16px 20px;background:var(--bg2);border:1px solid var(--line);border-radius:3px;margin-bottom:10px}
+.card-row:last-child{margin-bottom:0}
+
+/* ── FILE DROP ──────────────────────────────────────── */
+.drop{
+  background:var(--bg3);border:1px dashed var(--line2);border-radius:3px;
+  padding:24px 20px;text-align:center;cursor:pointer;position:relative;transition:all .25s;
+}
+.drop:hover,.drop.has{border-color:var(--gold);background:var(--golddim)}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-ico{font-size:26px;margin-bottom:8px}
+.drop-txt{font-family:var(--mono);font-size:11px;color:var(--mid)}
+.drop-name{font-family:var(--mono);font-size:11px;color:var(--gold);margin-top:5px;word-break:break-all}
+
+/* ── BADGES ─────────────────────────────────────────── */
+.badge{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:2px;font-weight:500}
+.b-easy  {background:rgba(54,212,144,.1);color:var(--green);border:1px solid rgba(54,212,144,.25)}
+.b-medium{background:rgba(232,184,75,.1);color:var(--gold);border:1px solid rgba(232,184,75,.25)}
+.b-hard  {background:rgba(240,79,101,.1);color:var(--red);border:1px solid rgba(240,79,101,.2)}
+.b-tech  {background:rgba(56,217,192,.07);color:var(--teal);border:1px solid rgba(56,217,192,.2)}
+
+/* ── SPINNER ─────────────────────────────────────────── */
+.loading-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px}
+.ring{
+  width:64px;height:64px;border-radius:50%;
+  border:2px solid var(--line2);border-top-color:var(--gold);
+  animation:spin .75s linear infinite;margin-bottom:28px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-title{font-family:var(--mono);font-size:14px;color:var(--text);margin-bottom:8px;letter-spacing:.04em}
+.load-sub{font-family:var(--mono);font-size:11px;color:var(--dim)}
+
+/* ── IFRAME PAGE ─────────────────────────────────────── */
+.iframe-shell{flex:1;display:flex;flex-direction:column}
+.iframe-bar{
+  padding:10px 20px;border-bottom:1px solid var(--line);background:var(--bg2);
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.iframe-url-chip{
+  font-family:var(--mono);font-size:10px;color:var(--dim);
+  background:var(--bg3);border:1px solid var(--line);padding:5px 12px;
+  flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:2px;
+}
+.verify-frame{width:100%;flex:1;border:none;min-height:0}
+.warn-strip{
+  display:none;padding:12px 20px;
+  background:rgba(240,79,101,.07);border-bottom:1px solid rgba(240,79,101,.2);
+  align-items:center;gap:10px;
+}
+.warn-strip.show{display:flex}
+.warn-strip span{font-family:var(--mono);font-size:11px;color:#f87171;flex:1}
+.approved-strip{
+  padding:14px 20px;background:rgba(54,212,144,.07);border-top:1px solid rgba(54,212,144,.2);
+  display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+}
+.approved-strip.show{display:flex}
+.approved-txt{font-family:var(--mono);font-size:12px;color:var(--green);display:flex;align-items:center;gap:8px}
+.dot-g{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+
+/* ── INTERVIEW ───────────────────────────────────────── */
+.iv-header{display:flex;align-items:center;gap:16px;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.q-counter{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.q-counter strong{font-size:24px;color:var(--gold);font-weight:700}
+.progress{flex:1;height:2px;background:var(--line);overflow:hidden;border-radius:1px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width .5s ease}
+
+.dots-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:20px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--line2);transition:all .3s}
+.dot.answered{background:var(--gold)}
+.dot.current{background:var(--gold2);box-shadow:0 0 8px var(--goldglow)}
+
+.q-panel{
+  background:var(--bg3);border:1px solid var(--line2);border-left:3px solid var(--gold);
+  border-radius:3px;padding:28px;margin-bottom:20px;
+}
+.q-meta{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.q-id{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.q-text{font-size:18px;font-weight:500;line-height:1.7;color:#ddeaf8}
+
+textarea.answer{
+  width:100%;min-height:130px;resize:vertical;
+  background:var(--bg3);border:1px solid var(--line2);color:var(--text);
+  padding:14px 16px;font-family:var(--mono);font-size:13px;line-height:1.7;
+  outline:none;border-radius:2px;transition:border-color .2s,box-shadow .2s;
+}
+textarea.answer:focus{border-color:var(--gold);box-shadow:0 0 0 3px var(--golddim)}
+.ans-hint{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:6px;letter-spacing:.04em}
+.nav-row{display:flex;align-items:center;justify-content:space-between;margin-top:18px}
+.ans-tally{font-family:var(--mono);font-size:11px;color:var(--dim)}
+
+/* ── RESULTS ─────────────────────────────────────────── */
+.score-banner{
+  text-align:center;padding:52px 24px 40px;
+  border-bottom:1px solid var(--line);margin-bottom:36px;
+}
+.grade-orb{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:120px;height:120px;border-radius:50%;border:2px solid var(--gold);
+  font-size:52px;font-weight:700;color:var(--gold);margin-bottom:20px;
+  box-shadow:0 0 60px var(--goldglow),inset 0 0 40px var(--golddim);
+  animation:orb 3s ease-in-out infinite;
+}
+@keyframes orb{0%,100%{box-shadow:0 0 60px var(--goldglow),inset 0 0 40px var(--golddim)}50%{box-shadow:0 0 90px var(--goldglow),inset 0 0 60px var(--golddim)}}
+.score-pct{font-size:38px;font-weight:700;color:#fff;margin-bottom:5px}
+.score-line{font-family:var(--mono);font-size:12px;color:var(--mid);margin-bottom:16px}
+.score-summary{font-size:14px;color:var(--mid);line-height:1.8;max-width:520px;margin:0 auto}
+
+.result-card{background:var(--bg2);border:1px solid var(--line);border-radius:3px;overflow:hidden;margin-bottom:10px}
+.rc-head{padding:16px 20px;display:flex;align-items:flex-start;gap:14px;cursor:pointer;transition:background .2s}
+.rc-head:hover{background:var(--bg3)}
+.score-chip{min-width:48px;text-align:center;padding:7px 10px;border-radius:2px;font-family:var(--mono);font-weight:700;font-size:20px;flex-shrink:0}
+.chip-great{background:rgba(54,212,144,.12);color:var(--green);border:1px solid rgba(54,212,144,.3)}
+.chip-good {background:rgba(56,217,192,.1);color:var(--teal);border:1px solid rgba(56,217,192,.25)}
+.chip-ok   {background:rgba(232,184,75,.1);color:var(--gold);border:1px solid rgba(232,184,75,.25)}
+.chip-bad  {background:rgba(240,79,101,.08);color:var(--red);border:1px solid rgba(240,79,101,.2)}
+.rc-q{font-size:14px;color:var(--text);line-height:1.5;flex:1}
+.rc-chevron{font-size:18px;color:var(--dim);flex-shrink:0;transition:transform .2s;user-select:none}
+.rc-chevron.open{transform:rotate(45deg)}
+.rc-body{display:none;padding:0 20px 20px;border-top:1px solid var(--line)}
+.rc-body.open{display:block}
+.rc-label{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin:16px 0 8px}
+.rc-answer{font-family:var(--mono);font-size:12px;color:var(--mid);background:var(--bg3);border:1px solid var(--line);padding:12px 14px;line-height:1.7;white-space:pre-wrap;word-break:break-word;border-radius:2px}
+.rc-feedback{font-size:13px;color:var(--text);background:var(--bg3);border:1px solid var(--line);border-left:3px solid var(--teal);padding:12px 14px;line-height:1.7;border-radius:2px}
+
+/* ── LOG ─────────────────────────────────────────────── */
+.log-wrap{background:var(--bg);border:1px solid var(--line);padding:12px;min-height:80px;max-height:220px;overflow-y:auto;font-family:var(--mono);font-size:11px;line-height:1.8;white-space:pre-wrap;word-break:break-all;border-radius:2px}
+.l-ok  {color:var(--green)}
+.l-err {color:var(--red)}
+.l-inf {color:var(--mid)}
+.l-warn{color:var(--gold)}
+
+/* ── TOAST ───────────────────────────────────────────── */
+#toast{
+  position:fixed;bottom:24px;right:24px;
+  background:var(--red);color:#fff;padding:14px 20px;
+  font-family:var(--mono);font-size:12px;max-width:380px;
+  box-shadow:0 8px 40px rgba(240,79,101,.4);z-index:9999;
+  display:none;border-radius:2px;animation:fadeUp .3s ease;
+}
+
+/* ── MISC ────────────────────────────────────────────── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:580px){.grid2{grid-template-columns:1fr}.track{display:none}}
+hr{border:none;border-top:1px solid var(--line);margin:24px 0}
+.info-note{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:var(--golddim);border:1px solid rgba(232,184,75,.2);border-radius:2px;margin-bottom:22px;font-size:13px;color:var(--mid);line-height:1.6}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 1 — LANDING / CONFIG
+═══════════════════════════════════════════════════════ -->
+<div class="page active" id="pg-landing">
+  <div class="bar">
+    <div class="logotype">Q_AI</div>
+    <div class="bar-right">
+      <div class="track">
+        <div class="tstep active"><div class="tn">1</div>Verify</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">2</div>Resume</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">3</div>Questions</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">4</div>Interview</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">5</div>Results</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="wrap-sm">
+      <span class="label">// AI-Powered Hiring Platform</span>
+      <h2>Candidate <em>Interview Portal</em></h2>
+      <p class="lead">Configure your endpoints below, then complete identity verification, upload your resume, and attend a fully AI-evaluated technical interview.</p>
+
+      <div class="field">
+        <label>🪪 Face Verification URL (Vercel)</label>
+        <input type="text" id="vercel-url" placeholder="https://your-project.vercel.app"/>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Module 1 — Resume Parser</label>
+          <input type="text" id="m1url" placeholder="https://xxxx.ngrok-free.app"/>
+        </div>
+        <div class="field">
+          <label>Module 2 — Interview Engine</label>
+          <input type="text" id="m2url" placeholder="https://xxxx.ngrok-free.app"/>
+        </div>
+      </div>
+
+      <hr/>
+
+      <div class="card-row">
+        <span style="font-size:22px">🪪</span>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px;margin-bottom:3px">Step 1 — Face &amp; Aadhaar Verification</div>
+          <div style="font-size:12px;color:var(--mid);font-family:var(--mono)">Biometric identity check via live webcam</div>
+        </div>
+        <span class="badge b-easy">Required</span>
+      </div>
+      <div class="card-row">
+        <span style="font-size:22px">📄</span>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px;margin-bottom:3px">Step 2 — Resume Upload</div>
+          <div style="font-size:12px;color:var(--mid);font-family:var(--mono)">AI parses your resume and builds your profile</div>
+        </div>
+        <span class="badge b-medium">After verify</span>
+      </div>
+      <div class="card-row" style="margin-bottom:28px">
+        <span style="font-size:22px">⚡</span>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px;margin-bottom:3px">Step 3 — AI Interview</div>
+          <div style="font-size:12px;color:var(--mid);font-family:var(--mono)">15 adaptive questions, instant AI evaluation</div>
+        </div>
+        <span class="badge b-hard">Final stage</span>
+      </div>
+
+      <button class="btn btn-primary btn-block" id="btn-start">▶ &nbsp;Start Test</button>
+
+      <hr/>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span class="label" style="margin:0">// Debug Log</span>
+        <button onclick="document.getElementById('log').innerHTML=''" class="btn btn-ghost" style="padding:4px 12px;font-size:10px">Clear</button>
+      </div>
+      <div class="log-wrap" id="log"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 2 — FACE VERIFICATION (iframe)
+═══════════════════════════════════════════════════════ -->
+<div class="page" id="pg-verify">
+  <div class="bar">
+    <div class="logotype">Q_AI</div>
+    <span style="font-family:var(--mono);font-size:12px;color:var(--mid)">/ Face Verification</span>
+    <div class="bar-right">
+      <div class="track">
+        <div class="tstep active"><div class="tn">1</div>Verify</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">2</div>Resume</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">3</div>Questions</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">4</div>Interview</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">5</div>Results</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="iframe-shell">
+    <div class="iframe-bar">
+      <div style="font-family:var(--mono);font-size:11px;color:var(--mid);display:flex;align-items:center;gap:8px">
+        <div style="width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--goldglow);animation:pulse 2s infinite"></div>
+        Complete the verification below, then click Mark Verified
+      </div>
+      <div class="iframe-url-chip" id="iframe-url-chip">—</div>
+      <button class="btn btn-ghost" style="padding:6px 14px;font-size:10px" onclick="reloadFrame()">↺ Reload</button>
+      <button class="btn btn-ghost" style="padding:6px 14px;font-size:10px" onclick="openTab()">↗ New Tab</button>
+      <button class="btn btn-teal" style="padding:6px 14px;font-size:10px" id="btn-mark-verified">✓ Mark Verified</button>
+    </div>
+
+    <div class="warn-strip" id="warn-strip">
+      <span>⚠️</span>
+      <span>Camera may be blocked — the page might prevent iframe embedding. Use <strong>↗ New Tab</strong> to complete verification, then click <strong>✓ Mark Verified</strong>.</span>
+    </div>
+
+    <iframe
+      id="verify-frame"
+      class="verify-frame"
+      src="about:blank"
+      allow="camera *; microphone *; display-capture *; autoplay *; clipboard-write *; geolocation *"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads allow-storage-access-by-user-activation"
+      referrerpolicy="no-referrer-when-downgrade"
+      title="Face Verification">
+    </iframe>
+
+    <div class="approved-strip" id="approved-strip">
+      <div class="approved-txt">
+        <div class="dot-g"></div>
+        ✓ Identity verified — ready to proceed
+      </div>
+      <button class="btn btn-teal" id="btn-to-resume">Proceed to Resume Upload →</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 3 — RESUME UPLOAD
+═══════════════════════════════════════════════════════ -->
+<div class="page" id="pg-resume">
+  <div class="bar">
+    <div class="logotype">Q_AI</div>
+    <div class="bar-right">
+      <div class="track">
+        <div class="tstep done"><div class="tn">✓</div>Verify</div>
+        <div class="tdash"></div>
+        <div class="tstep active"><div class="tn">2</div>Resume</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">3</div>Questions</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">4</div>Interview</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">5</div>Results</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="wrap-sm">
+      <span class="label">// Step 2 of 4</span>
+      <h2>Upload Your <em>Resume</em></h2>
+      <p class="lead">Upload your resume — the AI will parse your profile and generate 15 personalised technical questions tailored to your background.</p>
+
+      <div class="grid2" style="margin-bottom:24px">
+        <div>
+          <div class="field"><label>Resume (PDF / DOCX) *</label></div>
+          <div class="drop" id="rdrop">
+            <input type="file" id="rfile" accept=".pdf,.docx,.doc"/>
+            <div class="drop-ico">📄</div>
+            <div class="drop-txt">Click or drag to upload</div>
+            <div class="drop-name" id="rfname"></div>
+          </div>
+        </div>
+        <div>
+          <div class="field"><label>Audio Intro (optional)</label></div>
+          <div class="drop" id="adrop">
+            <input type="file" id="afile" accept=".wav,.mp3,.m4a,.ogg"/>
+            <div class="drop-ico">🎙️</div>
+            <div class="drop-txt">Click or drag to upload</div>
+            <div class="drop-name" id="afname"></div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-block" id="btn-upload">⚡ &nbsp;Upload Resume &amp; Generate Questions</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 4 — LOADING
+═══════════════════════════════════════════════════════ -->
+<div class="page" id="pg-loading">
+  <div class="bar"><div class="logotype">Q_AI</div></div>
+  <div class="loading-body">
+    <div class="ring"></div>
+    <div class="load-title" id="load-title">Processing...</div>
+    <div class="load-sub" id="load-sub">Please wait</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 5 — QUESTIONS READY
+═══════════════════════════════════════════════════════ -->
+<div class="page" id="pg-ready">
+  <div class="bar">
+    <div class="logotype">Q_AI</div>
+    <div class="bar-right">
+      <div class="track">
+        <div class="tstep done"><div class="tn">✓</div>Verify</div>
+        <div class="tdash"></div>
+        <div class="tstep done"><div class="tn">✓</div>Resume</div>
+        <div class="tdash"></div>
+        <div class="tstep active"><div class="tn">3</div>Questions</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">4</div>Interview</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">5</div>Results</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="wrap-sm" style="text-align:center">
+      <span class="label">// Profile built &amp; questions ready</span>
+      <h2>Ready, <em id="ready-name">Candidate</em>!</h2>
+      <p class="lead" id="ready-sub" style="margin-bottom:24px">Questions generated based on your profile.</p>
+
+      <div class="card" style="text-align:left;margin-bottom:24px">
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:14px">Question Breakdown</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap" id="q-breakdown"></div>
+      </div>
+
+      <div class="info-note">
+        <span>💡</span>
+        <span>Answer each question as clearly as you can. You <strong>cannot go back</strong> once you move forward. Take your time.</span>
+      </div>
+
+      <button class="btn btn-primary btn-block" id="btn-begin">▶ &nbsp;Begin Interview</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 6 — INTERVIEW
+═══════════════════════════════════════════════════════ -->
+<div class="page" id="pg-interview">
+  <div class="bar">
+    <div class="logotype">Q_AI</div>
+    <span style="font-family:var(--mono);font-size:12px;color:var(--mid)">/ Interview</span>
+    <div class="bar-right">
+      <div class="track">
+        <div class="tstep done"><div class="tn">✓</div>Verify</div>
+        <div class="tdash"></div>
+        <div class="tstep done"><div class="tn">✓</div>Resume</div>
+        <div class="tdash"></div>
+        <div class="tstep done"><div class="tn">✓</div>Questions</div>
+        <div class="tdash"></div>
+        <div class="tstep active"><div class="tn">4</div>Interview</div>
+        <div class="tdash"></div>
+        <div class="tstep"><div class="tn">5</div>Results</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:8px">
+        <div style="width:7px;height:7px;border-radius:50%;background:var(--gold);animation:pulse 2s infinite"></div>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--dim)">in progress</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="body" style="padding:28px 24px;justify-content:flex-start;align-items:center">
+    <div class="wrap-md">
+      <div class="iv-header">
+        <div class="q-counter">Q <strong id="q-cur">1</strong> / <strong id="q-tot">15</strong></div>
+        <div class="progress"><div class="progress-fill" id="prog" style="width:0%"></div></div>
+        <span class="badge" id="diff-badge">Easy</span>
+      </div>
+
+      <div class="dots-row" id="dots"></div>
+
+      <div class="q-panel">
+        <div class="q-meta">
+          <span class="q-id" id="q-id-lbl">Q1</span>
+          <span class="badge b-tech" id="q-cat">technical</span>
+        </div>
+        <div class="q-text" id="q-text">Loading...</div>
+      </div>
+
+      <textarea class="answer" id="answer" placeholder="Type your answer here..."></textarea>
+      <div class="ans-hint">Ctrl + Enter → next question</div>
+
+      <div class="nav-row">
+        <button class="btn btn-ghost" id="btn-prev">← &nbsp;Back</button>
+        <span class="ans-tally" id="ans-tally"></span>
+        <button class="btn btn-primary" id="btn-next">Next &nbsp;→</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 7 — EVALUATING
+═══════════════════════════════════════════════════════ -->
+<div class="page" id="pg-evaluating">
+  <div class="bar"><div class="logotype">Q_AI</div></div>
+  <div class="loading-body">
+    <div class="ring"></div>
+    <div class="load-title">Evaluating your answers...</div>
+    <div class="load-sub">AI is reviewing all responses — please wait</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE 8 — RESULTS
+═══════════════════════════════════════════════════════ -->
+<div class="page" id="pg-results">
+  <div class="bar">
+    <div class="logotype">Q_AI</div>
+    <span style="font-family:var(--mono);font-size:12px;color:var(--mid)">/ Test Report</span>
+    <div class="bar-right">
+      <div class="track">
+        <div class="tstep done"><div class="tn">✓</div>Verify</div>
+        <div class="tdash"></div>
+        <div class="tstep done"><div class="tn">✓</div>Resume</div>
+        <div class="tdash"></div>
+        <div class="tstep done"><div class="tn">✓</div>Questions</div>
+        <div class="tdash"></div>
+        <div class="tstep done"><div class="tn">✓</div>Interview</div>
+        <div class="tdash"></div>
+        <div class="tstep active"><div class="tn">5</div>Results</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="body" style="padding:36px 24px;justify-content:flex-start;align-items:center">
+    <div class="wrap-lg">
+      <div class="score-banner">
+        <div class="grade-orb" id="grade-orb">–</div>
+        <div class="score-pct" id="score-pct">–%</div>
+        <div class="score-line">Score: <strong id="score-pts">–</strong> / <strong id="score-max">–</strong></div>
+        <div class="score-summary" id="score-summary"></div>
+      </div>
+
+      <span class="label">// Detailed Breakdown</span>
+      <div id="results-list" style="margin-top:12px"></div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:32px;padding-top:24px;border-top:1px solid var(--line)">
+        <button class="btn btn-ghost" onclick="resetAll()">↺ &nbsp;New Session</button>
+        <button class="btn btn-teal" onclick="window.print()">⬇ &nbsp;Download Report</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// STATE
+// Exactly matches file 1's state variables.
+// ═══════════════════════════════════════════════════════
+let M1      = '';          // Module 1 URL (resume parser)
+let M2      = '';          // Module 2 URL (interview engine)
+let VERCEL  = '';          // Vercel face-verify URL
+let sessionId   = null;    // from /questions/generate response
+let questions   = [];      // array of question objects
+let answers     = [];      // candidate answers, indexed same as questions
+let profileData = null;    // full profile JSON from /upload_resume
+let currentIdx  = 0;       // current question index
+
+// ngrok interstitial bypass — identical to file 1
+const NGROK = { 'ngrok-skip-browser-warning': 'true' };
+
+// ═══════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════
+function go(name){
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('pg-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function toast(msg, ms=5500){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.style.display = 'none', ms);
+}
+
+function log(msg, cls='l-inf'){
+  const el = document.getElementById('log');
+  if(!el) return;
+  const ts = new Date().toLocaleTimeString();
+  el.innerHTML += `<span class="${cls}">[${ts}] ${msg}</span>\n`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function cleanUrl(v){ return v.trim().replace(/\/+$/, ''); }
+
+function esc(s){
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\n/g,'<br>');
+}
+
+// ═══════════════════════════════════════════════════════
+// FILE DROP LISTENERS
+// ═══════════════════════════════════════════════════════
+document.getElementById('rfile').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if(f){ document.getElementById('rfname').textContent = f.name; document.getElementById('rdrop').classList.add('has'); }
+});
+document.getElementById('afile').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if(f){ document.getElementById('afname').textContent = f.name; document.getElementById('adrop').classList.add('has'); }
+});
+
+// ═══════════════════════════════════════════════════════
+// PAGE 1 — START TEST
+// Validates all 3 URLs, saves to globals, loads iframe
+// ═══════════════════════════════════════════════════════
+document.getElementById('btn-start').addEventListener('click', () => {
+  const v  = cleanUrl(document.getElementById('vercel-url').value);
+  const m1 = cleanUrl(document.getElementById('m1url').value);
+  const m2 = cleanUrl(document.getElementById('m2url').value);
+
+  if(!v)  return toast('Please enter the Vercel face verification URL.');
+  if(!m1) return toast('Please enter the Module 1 (resume parser) URL.');
+  if(!m2) return toast('Please enter the Module 2 (interview engine) URL.');
+
+  VERCEL = v; M1 = m1; M2 = m2;
+  log(`Config saved.`);
+  log(`  Vercel : ${VERCEL}`);
+  log(`  M1     : ${M1}`);
+  log(`  M2     : ${M2}`);
+
+  // Load verification iframe
+  document.getElementById('verify-frame').src = VERCEL;
+  document.getElementById('iframe-url-chip').textContent = VERCEL;
+  startWatchdog();
+  go('verify');
+});
+
+// ═══════════════════════════════════════════════════════
+// PAGE 2 — IFRAME CONTROLS
+// ═══════════════════════════════════════════════════════
+function reloadFrame(){
+  const fr = document.getElementById('verify-frame');
+  fr.src = 'about:blank';
+  setTimeout(() => { fr.src = VERCEL; }, 100);
+}
+
+function openTab(){
+  if(VERCEL) window.open(VERCEL, '_blank', 'noopener');
+  else toast('No Vercel URL configured.');
+}
+
+// Detect iframe blocking (X-Frame-Options / CSP)
+document.getElementById('verify-frame').addEventListener('load', function(){
+  const ws = document.getElementById('warn-strip');
+  if(!VERCEL || this.src === 'about:blank') return;
+  try {
+    const doc = this.contentDocument || this.contentWindow.document;
+    const blocked = !doc || doc.body === null || doc.body.innerHTML.trim() === '';
+    ws.classList.toggle('show', blocked);
+  } catch(e){
+    ws.classList.remove('show'); // cross-origin = loaded fine
+  }
+});
+
+let _watchdog;
+function startWatchdog(){
+  clearTimeout(_watchdog);
+  _watchdog = setTimeout(() => {
+    const fr = document.getElementById('verify-frame');
+    const ws = document.getElementById('warn-strip');
+    if(!fr || fr.src === 'about:blank') return;
+    try {
+      const doc = fr.contentDocument || fr.contentWindow.document;
+      if(!doc || !doc.body || doc.body.innerHTML.trim() === '') ws.classList.add('show');
+    } catch(e){ ws.classList.remove('show'); }
+  }, 5000);
+}
+
+document.getElementById('btn-mark-verified').addEventListener('click', () => {
+  document.getElementById('approved-strip').classList.add('show');
+  log('Identity marked as verified.', 'l-ok');
+});
+
+document.getElementById('btn-to-resume').addEventListener('click', () => {
+  go('resume');
+});
+
+// ═══════════════════════════════════════════════════════
+// PAGE 3 — UPLOAD RESUME → MODULE 1 → MODULE 2
+//
+// EXACT file 1 logic:
+//   Step A: POST ${M1}/upload_resume
+//           FormData field: "file"
+//           Response: profileData JSON (candidate_name, skills, …)
+//
+//   Step B: POST ${M2}/questions/generate
+//           Body: JSON.stringify(profileData)
+//           Response: { session_id, questions: [{id, difficulty, question, …}] }
+// ═══════════════════════════════════════════════════════
+document.getElementById('btn-upload').addEventListener('click', async () => {
+  const rfile = document.getElementById('rfile').files[0];
+  if(!rfile) return toast('Please select a resume file first.');
+
+  go('loading');
+  document.getElementById('load-title').textContent = 'Parsing resume...';
+  document.getElementById('load-sub').textContent   = 'Extracting skills, experience, and projects...';
+
+  try {
+
+    // ── STEP A: POST /upload_resume ─────────────────────────────────────
+    // Field name is "file" — exactly as in file 1.
+    // No Content-Type header — browser sets multipart/form-data + boundary.
+    const form = new FormData();
+    form.append('file', rfile);          // ← "file", not "resume"
+
+    log(`→ POST ${M1}/upload_resume`);
+
+    const r1 = await fetch(`${M1}/upload_resume`, {
+      method:  'POST',
+      headers: { ...NGROK },             // ← no Content-Type, just ngrok header
+      body:    form,
+    });
+
+    const raw1 = await r1.text();
+    if(!r1.ok){
+      log(`❌ M1 ${r1.status}: ${raw1.slice(0,200)}`, 'l-err');
+      throw new Error(`Module 1 (${r1.status}): ${raw1.slice(0,120)}`);
+    }
+
+    profileData = JSON.parse(raw1);
+    log(`✅ Profile built. Name: ${profileData.candidate_name || '(unnamed)'}`, 'l-ok');
+    log(`   Skills: ${(profileData.skills || '').slice(0, 100)}…`, 'l-inf');
+
+    // ── STEP B: POST /questions/generate ───────────────────────────────
+    // Body is the full profileData object, JSON-stringified.
+    document.getElementById('load-title').textContent = 'Generating questions with Groq AI...';
+    document.getElementById('load-sub').textContent   = 'Tailoring easy, medium, and hard questions to your profile...';
+
+    log(`→ POST ${M2}/questions/generate`);
+
+    const r2 = await fetch(`${M2}/questions/generate`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', ...NGROK },
+      body:    JSON.stringify(profileData),
+    });
+
+    const raw2 = await r2.text();
+    if(!r2.ok){
+      log(`❌ M2 /questions/generate ${r2.status}: ${raw2.slice(0,200)}`, 'l-err');
+      throw new Error(`Module 2 (${r2.status}): ${raw2.slice(0,120)}`);
+    }
+
+    const qdata = JSON.parse(raw2);
+    sessionId = qdata.session_id;
+    questions = qdata.questions;
+    answers   = new Array(questions.length).fill('');
+
+    log(`✅ ${questions.length} questions ready. Session: ${sessionId}`, 'l-ok');
+
+    // ── Build "Ready" page ──────────────────────────────────────────────
+    document.getElementById('ready-name').textContent = profileData.candidate_name || 'Candidate';
+    document.getElementById('ready-sub').textContent  =
+      `${qdata.total || questions.length} questions generated from your resume.`;
+
+    const counts = {};
+    questions.forEach(q => { counts[q.difficulty] = (counts[q.difficulty] || 0) + 1; });
+    document.getElementById('q-breakdown').innerHTML = Object.entries(counts)
+      .map(([d, c]) => `<span class="badge b-${d}" style="font-size:12px;padding:6px 16px">${c} ${d.charAt(0).toUpperCase()+d.slice(1)}</span>`)
+      .join('');
+
+    go('ready');
+
+  } catch(err){
+    go('resume');
+    const msg = (err.name === 'TypeError') ? `Network error — is the ngrok tunnel running? (${err.message})` : err.message;
+    log(`❌ ${msg}`, 'l-err');
+    toast('❌ ' + msg);
+    console.error(err);
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// PAGE 5 — BEGIN INTERVIEW
+// ═══════════════════════════════════════════════════════
+document.getElementById('btn-begin').addEventListener('click', () => {
+  currentIdx = 0;
+  buildDots();
+  renderQuestion(0);
+  go('interview');
+});
+
+// ═══════════════════════════════════════════════════════
+// PAGE 6 — INTERVIEW RENDERING
+// ═══════════════════════════════════════════════════════
+function buildDots(){
+  const row = document.getElementById('dots');
+  row.innerHTML = '';
+  questions.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    d.id = 'dot-' + i;
+    row.appendChild(d);
+  });
+}
+
+function refreshDots(idx){
+  questions.forEach((_, i) => {
+    const d = document.getElementById('dot-' + i);
+    if(!d) return;
+    d.className = 'dot';
+    if(i < idx)   d.classList.add('answered');
+    if(i === idx) d.classList.add('current');
+  });
+}
+
+function renderQuestion(idx){
+  const q   = questions[idx];
+  const tot = questions.length;
+
+  document.getElementById('q-cur').textContent    = idx + 1;
+  document.getElementById('q-tot').textContent    = tot;
+  document.getElementById('q-id-lbl').textContent = `Q${q.id}`;
+  document.getElementById('q-text').textContent   = q.question;
+
+  const db = document.getElementById('diff-badge');
+  db.textContent = q.difficulty.charAt(0).toUpperCase() + q.difficulty.slice(1);
+  db.className   = 'badge b-' + q.difficulty;
+
+  document.getElementById('q-cat').textContent   = q.category || 'technical';
+  document.getElementById('prog').style.width    = Math.round((idx / tot) * 100) + '%';
+  document.getElementById('answer').value        = answers[idx] || '';
+  document.getElementById('answer').focus();
+
+  const done = answers.filter(a => a.trim()).length;
+  document.getElementById('ans-tally').textContent = `${done} of ${tot} answered`;
+
+  document.getElementById('btn-next').textContent = (idx === tot - 1) ? 'Submit All  ✓' : 'Next  →';
+  document.getElementById('btn-prev').style.visibility = (idx === 0) ? 'hidden' : 'visible';
+
+  refreshDots(idx);
+}
+
+function goBack(){
+  answers[currentIdx] = document.getElementById('answer').value.trim();
+  if(currentIdx > 0){
+    currentIdx--;
+    renderQuestion(currentIdx);
+  }
+}
+
+function advance(){
+  answers[currentIdx] = document.getElementById('answer').value.trim();
+  if(currentIdx < questions.length - 1){
+    currentIdx++;
+    renderQuestion(currentIdx);
+  } else {
+    submitAnswers();
+  }
+}
+
+document.getElementById('btn-next').addEventListener('click', advance);
+document.getElementById('btn-prev').addEventListener('click', goBack);
+document.getElementById('answer').addEventListener('keydown', e => {
+  if(e.ctrlKey && e.key === 'Enter') advance();
+});
+
+// ═══════════════════════════════════════════════════════
+// SUBMIT & EVALUATE
+//
+// EXACT file 1 logic:
+//   POST ${M2}/evaluation/evaluate_answers
+//   Body: { session_id, answers: [{ question_id, candidate_answer }] }
+//   Response: { grade, total_score, max_score, percentage, summary,
+//               results: [{ question_id, difficulty, score, feedback }] }
+// ═══════════════════════════════════════════════════════
+async function submitAnswers(){
+  go('evaluating');
+
+  const payload = {
+    session_id: sessionId,
+    answers: questions.map((q, i) => ({
+      question_id:      q.id,
+      candidate_answer: answers[i] || '(no answer)',
+    })),
+  };
+
+  log(`→ POST ${M2}/evaluation/evaluate_answers`);
+
+  try {
+    const resp = await fetch(`${M2}/evaluation/evaluate_answers`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', ...NGROK },
+      body:    JSON.stringify(payload),
+    });
+
+    const rawR = await resp.text();
+    if(!resp.ok){
+      log(`❌ Eval ${resp.status}: ${rawR.slice(0,200)}`, 'l-err');
+      throw new Error(`Evaluation (${resp.status}): ${rawR.slice(0,120)}`);
+    }
+
+    const data = JSON.parse(rawR);
+    log(`✅ Grade: ${data.grade}  |  Score: ${data.total_score}/${data.max_score}  |  ${data.percentage}%`, 'l-ok');
+    data.results.forEach(r => {
+      const icon = r.score >= 7 ? '✅' : r.score >= 4 ? '⚠️' : '❌';
+      log(`  ${icon} Q${r.question_id} [${r.difficulty}] ${r.score}/10 — ${r.feedback}`, 'l-inf');
+    });
+
+    renderResults(data);
+    go('results');
+
+  } catch(err){
+    go('interview');
+    const msg = (err.name === 'TypeError') ? `Network error — is the ngrok tunnel running? (${err.message})` : err.message;
+    log(`❌ ${msg}`, 'l-err');
+    toast('❌ ' + msg);
+    console.error(err);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER RESULTS
+// ═══════════════════════════════════════════════════════
+function renderResults(data){
+  document.getElementById('score-pct').textContent    = data.percentage + '%';
+  document.getElementById('score-pts').textContent    = data.total_score;
+  document.getElementById('score-max').textContent    = data.max_score;
+  document.getElementById('score-summary').textContent = data.summary;
+
+  const orb = document.getElementById('grade-orb');
+  orb.textContent = data.grade;
+  const colors = { 'A+':getComputedStyle(document.documentElement).getPropertyValue('--green'),
+                   'A': getComputedStyle(document.documentElement).getPropertyValue('--green'),
+                   'B': getComputedStyle(document.documentElement).getPropertyValue('--teal'),
+                   'C': getComputedStyle(document.documentElement).getPropertyValue('--gold'),
+                   'D': getComputedStyle(document.documentElement).getPropertyValue('--gold'),
+                   'F': getComputedStyle(document.documentElement).getPropertyValue('--red') };
+  const c = colors[data.grade] || 'var(--gold)';
+  orb.style.borderColor = c;
+  orb.style.color       = c;
+
+  const list = document.getElementById('results-list');
+  list.innerHTML = '';
+
+  data.results.forEach(r => {
+    const chip = r.score >= 9 ? 'chip-great' : r.score >= 7 ? 'chip-good' : r.score >= 5 ? 'chip-ok' : 'chip-bad';
+    // Find the matching question text from the questions array
+    const qObj = questions.find(q => q.id === r.question_id) || {};
+
+    const el = document.createElement('div');
+    el.className = 'result-card';
+    el.innerHTML = `
+      <div class="rc-head" onclick="toggleCard(this)">
+        <div class="score-chip ${chip}">${r.score}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span class="badge b-${r.difficulty}">${r.difficulty}</span>
+            <span style="font-family:var(--mono);font-size:10px;color:var(--dim)">Q${r.question_id}</span>
+          </div>
+          <div class="rc-q">${esc(qObj.question || '')}</div>
+        </div>
+        <div class="rc-chevron">+</div>
+      </div>
+      <div class="rc-body">
+        <div class="rc-label">Your Answer</div>
+        <div class="rc-answer">${esc(r.candidate_answer || '(no answer given)')}</div>
+        <div class="rc-label">AI Feedback</div>
+        <div class="rc-feedback">${esc(r.feedback)}</div>
+      </div>`;
+    list.appendChild(el);
+  });
+}
+
+function toggleCard(head){
+  const body = head.nextElementSibling;
+  const chev = head.querySelector('.rc-chevron');
+  const open = body.classList.toggle('open');
+  chev.textContent = open ? '−' : '+';
+  chev.classList.toggle('open', open);
+}
+
+// ═══════════════════════════════════════════════════════
+// RESET
+// ═══════════════════════════════════════════════════════
+function resetAll(){
+  M1 = ''; M2 = ''; VERCEL = '';
+  sessionId = null; questions = []; answers = []; profileData = null; currentIdx = 0;
+  document.getElementById('m1url').value      = '';
+  document.getElementById('m2url').value      = '';
+  document.getElementById('vercel-url').value = '';
+  document.getElementById('approved-strip').classList.remove('show');
+  document.getElementById('warn-strip').classList.remove('show');
+  log('Session reset.', 'l-warn');
+  go('landing');
+}
+</script>
+</body>
+</html>

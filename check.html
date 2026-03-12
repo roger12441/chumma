@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Interview Portal</title>
+</head>
+
+<body>
+
+<h2>Start Interview</h2>
+
+<button onclick="generateQuestions()">Generate Questions</button>
+
+<pre id="result"></pre>
+
+<script>
+
+async function generateQuestions(){
+
+  const res = await fetch("http://localhost:8001/generate_questions",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json"
+    },
+    body:JSON.stringify({
+      candidate_name:"Test User",
+      skills:"Python, ML",
+      projects:"Chatbot system",
+      experience:"1 year internship"
+    })
+  })
+
+  const data = await res.json()
+
+  document.getElementById("result").textContent =
+    JSON.stringify(data,null,2)
+
+}
+
+</script>
+
+</body>
+</html>
