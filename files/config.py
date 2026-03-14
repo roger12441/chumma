@@ -20,8 +20,8 @@ if not GROQ_API_KEY:
 groq_client = Groq(api_key=GROQ_API_KEY)
 
 # ── Model names (overridable via env) ───────────────────────────────────────────
-QUESTION_MODEL  = os.getenv("QUESTION_MODEL", "llama-3.3-70b-versatile")
-EVAL_MODEL      = os.getenv("EVAL_MODEL",     "llama-3.3-70b-versatile")
+QUESTION_MODEL  = os.getenv("QUESTION_MODEL", "llama-3.1-8b-instant")
+EVAL_MODEL      = os.getenv("EVAL_MODEL",     "llama-3.1-8b-instant")
 TOTAL_QUESTIONS = 15   # 6 easy + 5 medium + 4 hard
 
 # ── CORS ────────────────────────────────────────────────────────────────────────
@@ -31,3 +31,8 @@ ALLOWED_ORIGINS: list[str] = (
     if _raw_origins
     else ["*"]
 )
+
+# ── Azure TTS ───────────────────────────────────────────────────────────────────
+AZURE_SPEECH_KEY = os.getenv("AZURE_SPEECH_KEY", "")
+AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION", "centralindia")
+DEFAULT_VOICE = os.getenv("DEFAULT_VOICE", "en-IN-ArjunNeural")

@@ -42,6 +42,7 @@ from store import SESSION_STORE, VERIFIED_SESSIONS
 from verification import router as verification_router
 from questions    import router as questions_router
 from evaluation   import router as evaluation_router
+from stt          import router as stt_router
 
 # ── App ──────────────────────────────────────────────────────────────────────────
 
@@ -75,6 +76,7 @@ app.add_middleware(
 app.include_router(verification_router)
 app.include_router(questions_router)
 app.include_router(evaluation_router)
+app.include_router(stt_router)
 
 # ── Health check ──────────────────────────────────────────────────────────────────
 
