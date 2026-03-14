@@ -20,6 +20,10 @@
   label { font-size: 11px; color: #7a9ab0; display: block; margin-bottom: 4px; }
   #q-list { background: #0a0a0a; border: 1px solid #333; padding: 12px; font-size: 12px; display: none; }
   #q-list div { padding: 6px 0; border-bottom: 1px solid #1a1a1a; }
+  .q-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .mini-btn { padding: 6px 10px; font-size: 11px; margin-right: 0; margin-bottom: 0; }
+  .mic-live { background: #f43f5e; color: #fff; }
+  .stt-note { font-size: 11px; color: #7a9ab0; margin-bottom: 6px; }
 </style>
 </head>
 <body>
@@ -32,6 +36,7 @@
 <input id="m1url" placeholder="https://xxxx.ngrok-free.app" />
 <label>Module 2 URL (interview engine)</label>
 <input id="m2url" placeholder="https://xxxx.ngrok-free.app" />
+<button id="btn-bypass" onclick="runBypass()" class="sec">Run Bypass Test</button>
 
 <hr/>
 
@@ -40,6 +45,7 @@
 <label>Resume file (PDF / DOCX)</label>
 <input type="file" id="rfile" accept=".pdf,.docx,.doc" />
 <button id="btn-upload" onclick="uploadResume()">POST /upload_resume</button>
+<button id="btn-skip-resume" onclick="skipResumeParser()" class="sec">Skip Resume Parser</button>
 
 <hr/>
 
@@ -68,6 +74,14 @@
 let sessionId   = null;
 let questions   = [];
 let profileData = null;
+let currentAudio = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let isProcessingAudio = false;
+let liveTranInterval = null;
+let activeAnswerIndex = null;
+let initialText = '';
 
 const NGROK = { 'ngrok-skip-browser-warning': 'true' };
 
@@ -78,6 +92,262 @@ function log(msg, cls='inf') {
   const ts = new Date().toLocaleTimeString();
   el.innerHTML += `<span class="${cls}">[${ts}] ${msg}</span>\n`;
   el.scrollTop = el.scrollHeight;
+}
+
+function renderQuestions() {
+  const ql = document.getElementById('q-list');
+  ql.style.display = 'block';
+  ql.innerHTML = questions.map((q, i) => `
+    <div>
+      <label>[Q${q.id}] [${q.difficulty}] ${q.question}</label>
+      <div class="q-actions">
+        <button type="button" class="mini-btn" onclick="playQuestionTTS(${i})">Speak Question</button>
+        <button type="button" class="mini-btn sec" id="mic-btn-${i}" onclick="toggleQuestionRecording(${i})">Record Answer</button>
+      </div>
+      <div class="stt-note" id="stt-note-${i}">Use the microphone to transcribe into this answer box.</div>
+      <textarea id="ans-${i}" rows="2" placeholder="Your answer..."></textarea>
+    </div>
+  `).join('');
+  document.getElementById('btn-eval').disabled = false;
+}
+
+async function playTTS(text) {
+  const m2 = url('m2url');
+  if (!m2) {
+    log('❌ Module 2 URL is empty.', 'err');
+    return;
+  }
+
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio = null;
+  }
+
+  try {
+    const res = await fetch(`${m2}/stt/synthesize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+
+    if (!res.ok) {
+      const textBody = await res.text();
+      throw new Error(`HTTP ${res.status}: ${textBody}`);
+    }
+
+    const blob = await res.blob();
+    const audioUrl = URL.createObjectURL(blob);
+    currentAudio = new Audio(audioUrl);
+    await currentAudio.play();
+    log('✅ TTS playback started.', 'ok');
+  } catch (e) {
+    log(`❌ TTS error: ${e.message}`, 'err');
+  }
+}
+
+function playQuestionTTS(index) {
+  const q = questions[index];
+  if (!q) return;
+  playTTS(q.question);
+}
+
+function setMicButtonState(index, text, recording) {
+  const btn = document.getElementById(`mic-btn-${index}`);
+  const note = document.getElementById(`stt-note-${index}`);
+  if (!btn || !note) return;
+  btn.textContent = text;
+  btn.classList.toggle('mic-live', recording);
+  note.textContent = recording
+    ? 'Recording in progress. Click again to stop and finalize transcription.'
+    : 'Use the microphone to transcribe into this answer box.';
+}
+
+async function transcribeCurrentBuffer() {
+  if (audioChunks.length === 0 || activeAnswerIndex === null) return;
+
+  const m2 = url('m2url');
+  if (!m2) {
+    log('❌ Module 2 URL is empty.', 'err');
+    return;
+  }
+
+  const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+  const formData = new FormData();
+  formData.append('file', audioBlob, 'audio.webm');
+
+  try {
+    const response = await fetch(`${m2}/stt/transcribe`, {
+      method: 'POST',
+      headers: { ...NGROK },
+      body: formData
+    });
+
+    const data = await response.json();
+    if (response.ok && data.status === 'success') {
+      const answerBox = document.getElementById(`ans-${activeAnswerIndex}`);
+      if (answerBox) {
+        answerBox.value = initialText ? initialText + ' ' + data.text : data.text;
+      }
+    } else {
+      throw new Error(data.detail || 'Unknown STT error');
+    }
+  } catch (e) {
+    log(`❌ STT error: ${e.message}`, 'err');
+  }
+}
+
+async function stopRecording() {
+  const index = activeAnswerIndex;
+  isRecording = false;
+  if (liveTranInterval) clearInterval(liveTranInterval);
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+
+  if (index !== null) setMicButtonState(index, 'Finishing...', false);
+
+  if (audioChunks.length > 0) {
+    await transcribeCurrentBuffer();
+  }
+
+  if (index !== null) {
+    setMicButtonState(index, 'Record Answer', false);
+    log(`✅ STT captured for answer ${index + 1}.`, 'ok');
+  }
+
+  activeAnswerIndex = null;
+}
+
+async function toggleQuestionRecording(index) {
+  if (isRecording) {
+    if (activeAnswerIndex !== index) {
+      log('⚠️ Another answer is currently recording. Stop it first.', 'warn');
+      return;
+    }
+    await stopRecording();
+    return;
+  }
+
+  if (isProcessingAudio) {
+    log('⚠️ Previous recording is still being processed. Please wait a moment.', 'warn');
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    audioChunks = [];
+    activeAnswerIndex = index;
+    const answerBox = document.getElementById(`ans-${index}`);
+    initialText = answerBox ? answerBox.value.trim() : '';
+
+    mediaRecorder.addEventListener('dataavailable', event => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
+    });
+
+    mediaRecorder.addEventListener('stop', () => {
+      stream.getTracks().forEach(track => track.stop());
+      isProcessingAudio = false;
+    });
+
+    mediaRecorder.start(1000);
+    isRecording = true;
+    isProcessingAudio = true;
+    setMicButtonState(index, 'Stop Recording', true);
+    log(`🎤 Recording started for answer ${index + 1}.`, 'inf');
+
+    liveTranInterval = setInterval(async () => {
+      if (!isRecording || activeAnswerIndex !== index) return;
+      await transcribeCurrentBuffer();
+    }, 3500);
+  } catch (e) {
+    activeAnswerIndex = null;
+    log(`❌ Mic error: ${e.message}`, 'err');
+  }
+}
+
+// ── Fast-path: bypass M1 and use a mock profile ──────────────────────────────
+async function runBypass() {
+  const m2 = url('m2url');
+  if (!m2) return log('❌ Module 2 URL is empty.', 'err');
+
+  profileData = {
+    candidate_name: "STT Tester",
+    skills: "Python, Testing, Development",
+    projects: "AI Portal Integration",
+    experience: "3 Years"
+  };
+  document.getElementById('profile-json').value = JSON.stringify(profileData, null, 2);
+  document.getElementById('btn-bypass').disabled = true;
+
+  log('⚠️ Running bypass mode: skipping resume upload and using mock profile.', 'warn');
+  log(`→ POST ${m2}/questions/generate`);
+
+  try {
+    const r = await fetch(`${m2}/questions/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...NGROK },
+      body: JSON.stringify(profileData),
+    });
+
+    const text = await r.text();
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${text}`);
+
+    const data = JSON.parse(text);
+    sessionId = data.session_id;
+    questions = data.questions;
+
+    log(`✅ ${questions.length} questions generated in bypass mode. Session: ${sessionId}`, 'ok');
+    renderQuestions();
+
+  } catch (e) {
+    log(`❌ Bypass /questions/generate error: ${e.message}`, 'err');
+  } finally {
+    document.getElementById('btn-bypass').disabled = false;
+  }
+}
+
+async function skipResumeParser() {
+  const m2 = url('m2url');
+  if (!m2) return log('❌ Module 2 URL is empty.', 'err');
+
+  profileData = {
+    candidate_name: "Bypass Candidate",
+    skills: "Python, FastAPI, Testing",
+    projects: "Interview Portal Debugging",
+    experience: "3 Years"
+  };
+
+  document.getElementById('profile-json').value = JSON.stringify(profileData, null, 2);
+  document.getElementById('btn-skip-resume').disabled = true;
+
+  log('⚠️ Skipping Module 1 resume parsing and using a mock candidate profile.', 'warn');
+  log(`→ POST ${m2}/questions/generate`);
+
+  try {
+    const r = await fetch(`${m2}/questions/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...NGROK },
+      body: JSON.stringify(profileData),
+    });
+
+    const text = await r.text();
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${text}`);
+
+    const data = JSON.parse(text);
+    sessionId = data.session_id;
+    questions = data.questions;
+
+    log(`✅ ${questions.length} interview questions generated from bypass profile. Session: ${sessionId}`, 'ok');
+    renderQuestions();
+
+  } catch (e) {
+    log(`❌ Skip resume flow error: ${e.message}`, 'err');
+  } finally {
+    document.getElementById('btn-skip-resume').disabled = false;
+  }
 }
 
 // ── Step 1: Upload Resume ─────────────────────────────────────────────────────
@@ -151,17 +421,7 @@ async function generateQuestions() {
 
     log(`✅ ${questions.length} questions generated. Session: ${sessionId}`, 'ok');
 
-    // Render answer inputs
-    const ql = document.getElementById('q-list');
-    ql.style.display = 'block';
-    ql.innerHTML = questions.map((q, i) => `
-      <div>
-        <label>[Q${q.id}] [${q.difficulty}] ${q.question}</label>
-        <textarea id="ans-${i}" rows="2" placeholder="Your answer..."></textarea>
-      </div>
-    `).join('');
-
-    document.getElementById('btn-eval').disabled = false;
+    renderQuestions();
 
   } catch(e) {
     log(`❌ Module 2 /questions/generate error: ${e.message}`, 'err');

@@ -1236,8 +1236,11 @@
           </div>
         </div>
 
-        <button class="btn btn-primary btn-block" id="btn-upload">⚡ &nbsp;Upload Resume &amp; Generate
-          Questions</button>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button class="btn btn-primary" id="btn-upload" style="flex:1 1 280px">⚡ &nbsp;Upload Resume &amp; Generate
+            Questions</button>
+          <button class="btn btn-ghost" id="btn-skip-resume" style="flex:1 1 220px">⏭ &nbsp;Skip Resume Parser</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1525,61 +1528,35 @@
     // Validates all 3 URLs, saves to globals, loads iframe
     // ═══════════════════════════════════════════════════════
     document.getElementById('btn-start').addEventListener('click', async () => {
+      const vercel = cleanUrl(document.getElementById('vercel-url').value);
+      const m1 = cleanUrl(document.getElementById('m1url').value);
       const m2 = cleanUrl(document.getElementById('m2url').value);
-      M2 = m2 || "http://localhost:8001";
 
-      toast('Test Mode: Bypassing Face ID & Resume Upload', 3000);
-      log(`Config saved — Calling M2 directly: ${M2}`);
-      log("Skipping Vercel and M1 for STT testing purposes.", "l-warn");
-
-      go('loading');
-      document.getElementById('load-title').textContent = 'Generating questions with Groq AI...';
-      document.getElementById('load-sub').textContent = 'Tailoring questions to mocked test profile...';
-
-      profileData = {
-        candidate_name: "STT Tester",
-        skills: "Python, Testing, Development",
-        projects: "AI Portal Integration",
-        experience: "3 Years"
-      };
-
-      try {
-        const r2 = await fetch(`${M2}/questions/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...NGROK },
-          body: JSON.stringify(profileData),
-        });
-
-        const raw2 = await r2.text();
-        if (!r2.ok) {
-          log(`❌ M2 /questions/generate ${r2.status}: ${raw2.slice(0, 200)}`, 'l-err');
-          throw new Error(`Module 2 (${r2.status}): ${raw2.slice(0, 120)}`);
-        }
-
-        const qdata = JSON.parse(raw2);
-        sessionId = qdata.session_id;
-        questions = qdata.questions;
-        answers = new Array(questions.length).fill('');
-
-        log(`✅ ${questions.length} questions ready. Session: ${sessionId}`, 'l-ok');
-
-        document.getElementById('ready-name').textContent = profileData.candidate_name;
-        document.getElementById('ready-sub').textContent = `${qdata.total || questions.length} questions generated from test profile.`;
-
-        const counts = {};
-        questions.forEach(q => { counts[q.difficulty] = (counts[q.difficulty] || 0) + 1; });
-        document.getElementById('q-breakdown').innerHTML = Object.entries(counts)
-          .map(([d, c]) => `<span class="badge b-${d}" style="font-size:12px;padding:6px 16px">${c} ${d.charAt(0).toUpperCase() + d.slice(1)}</span>`)
-          .join('');
-
-        go('ready');
-
-      } catch (err) {
-        go('landing');
-        const msg = (err.name === 'TypeError') ? `Network error — is M2 running? (${err.message})` : err.message;
-        log(`❌ ${msg}`, 'l-err');
-        toast('❌ ' + msg);
+      if (!vercel || !m1 || !m2) {
+        toast('Please enter all three URLs before starting.');
+        log('❌ Missing one or more required URLs.', 'l-err');
+        return;
       }
+
+      VERCEL = vercel;
+      M1 = m1;
+      M2 = m2;
+
+      const fr = document.getElementById('verify-frame');
+      document.getElementById('iframe-url-chip').textContent = VERCEL;
+      document.getElementById('approved-strip').classList.remove('show');
+      document.getElementById('warn-strip').classList.remove('show');
+      fr.src = 'about:blank';
+
+      log(`Config saved — Vercel: ${VERCEL}`, 'l-ok');
+      log(`Config saved — M1: ${M1}`, 'l-ok');
+      log(`Config saved — M2: ${M2}`, 'l-ok');
+
+      go('verify');
+      setTimeout(() => {
+        fr.src = VERCEL;
+        startWatchdog();
+      }, 100);
     });
 
     // ═══════════════════════════════════════════════════════
@@ -1632,6 +1609,53 @@
       go('resume');
     });
 
+    async function generateQuestionsFromProfile(profile, sourceLabel, autoBegin = false) {
+      go('loading');
+      document.getElementById('load-title').textContent = 'Generating questions with Groq AI...';
+      document.getElementById('load-sub').textContent = `Tailoring questions from ${sourceLabel}...`;
+
+      log(`→ POST ${M2}/questions/generate`);
+
+      const r2 = await fetch(`${M2}/questions/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...NGROK },
+        body: JSON.stringify(profile),
+      });
+
+      const raw2 = await r2.text();
+      if (!r2.ok) {
+        log(`❌ M2 /questions/generate ${r2.status}: ${raw2.slice(0, 200)}`, 'l-err');
+        throw new Error(`Module 2 (${r2.status}): ${raw2.slice(0, 120)}`);
+      }
+
+      const qdata = JSON.parse(raw2);
+      sessionId = qdata.session_id;
+      questions = qdata.questions;
+      answers = new Array(questions.length).fill('');
+
+      log(`✅ ${questions.length} questions ready. Session: ${sessionId}`, 'l-ok');
+
+      document.getElementById('ready-name').textContent = profile.candidate_name || 'Candidate';
+      document.getElementById('ready-sub').textContent =
+        `${qdata.total || questions.length} questions generated from ${sourceLabel}.`;
+
+      const counts = {};
+      questions.forEach(q => { counts[q.difficulty] = (counts[q.difficulty] || 0) + 1; });
+      document.getElementById('q-breakdown').innerHTML = Object.entries(counts)
+        .map(([d, c]) => `<span class="badge b-${d}" style="font-size:12px;padding:6px 16px">${c} ${d.charAt(0).toUpperCase() + d.slice(1)}</span>`)
+        .join('');
+
+      if (autoBegin) {
+        currentIdx = 0;
+        buildDots();
+        renderQuestion(0);
+        go('interview');
+        return;
+      }
+
+      go('ready');
+    }
+
     // ═══════════════════════════════════════════════════════
     // PAGE 3 — UPLOAD RESUME → MODULE 1 → MODULE 2
     //
@@ -1677,45 +1701,7 @@
         profileData = JSON.parse(raw1);
         log(`✅ Profile built. Name: ${profileData.candidate_name || '(unnamed)'}`, 'l-ok');
         log(`   Skills: ${(profileData.skills || '').slice(0, 100)}…`, 'l-inf');
-
-        // ── STEP B: POST /questions/generate ───────────────────────────────
-        // Body is the full profileData object, JSON-stringified.
-        document.getElementById('load-title').textContent = 'Generating questions with Groq AI...';
-        document.getElementById('load-sub').textContent = 'Tailoring easy, medium, and hard questions to your profile...';
-
-        log(`→ POST ${M2}/questions/generate`);
-
-        const r2 = await fetch(`${M2}/questions/generate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...NGROK },
-          body: JSON.stringify(profileData),
-        });
-
-        const raw2 = await r2.text();
-        if (!r2.ok) {
-          log(`❌ M2 /questions/generate ${r2.status}: ${raw2.slice(0, 200)}`, 'l-err');
-          throw new Error(`Module 2 (${r2.status}): ${raw2.slice(0, 120)}`);
-        }
-
-        const qdata = JSON.parse(raw2);
-        sessionId = qdata.session_id;
-        questions = qdata.questions;
-        answers = new Array(questions.length).fill('');
-
-        log(`✅ ${questions.length} questions ready. Session: ${sessionId}`, 'l-ok');
-
-        // ── Build "Ready" page ──────────────────────────────────────────────
-        document.getElementById('ready-name').textContent = profileData.candidate_name || 'Candidate';
-        document.getElementById('ready-sub').textContent =
-          `${qdata.total || questions.length} questions generated from your resume.`;
-
-        const counts = {};
-        questions.forEach(q => { counts[q.difficulty] = (counts[q.difficulty] || 0) + 1; });
-        document.getElementById('q-breakdown').innerHTML = Object.entries(counts)
-          .map(([d, c]) => `<span class="badge b-${d}" style="font-size:12px;padding:6px 16px">${c} ${d.charAt(0).toUpperCase() + d.slice(1)}</span>`)
-          .join('');
-
-        go('ready');
+        await generateQuestionsFromProfile(profileData, 'your resume');
 
       } catch (err) {
         go('resume');
@@ -1723,6 +1709,26 @@
         log(`❌ ${msg}`, 'l-err');
         toast('❌ ' + msg);
         console.error(err);
+      }
+    });
+
+    document.getElementById('btn-skip-resume').addEventListener('click', async () => {
+      profileData = {
+        candidate_name: 'Bypass Candidate',
+        skills: 'Python, FastAPI, Testing',
+        projects: 'Interview Portal Debugging',
+        experience: '3 Years'
+      };
+
+      log('⚠️ Skipping resume parser and using a mock profile.', 'l-warn');
+
+      try {
+        await generateQuestionsFromProfile(profileData, 'a bypass profile', true);
+      } catch (err) {
+        go('resume');
+        const msg = (err.name === 'TypeError') ? `Network error — is the ngrok tunnel running? (${err.message})` : err.message;
+        log(`❌ ${msg}`, 'l-err');
+        toast('❌ ' + msg);
       }
     });
 
