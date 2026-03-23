@@ -53,14 +53,14 @@
 <h2>3. Generate Questions → Module 2</h2>
 <label>Profile JSON (auto-filled after Step 2, or paste manually)</label>
 <textarea id="profile-json" rows="5" placeholder='{"candidate_name":"...","skills":"..."}'></textarea>
-<button id="btn-gen" onclick="generateQuestions()" disabled>POST /questions/generate</button>
+<button id="btn-gen" onclick="generateQuestions()" disabled>POST /generate_questions</button>
 
 <hr/>
 
 <!-- ── STEP 3: ANSWER + EVALUATE ── -->
 <h2>4. Answer &amp; Evaluate → Module 2</h2>
 <div id="q-list"></div>
-<button id="btn-eval" onclick="evaluateAnswers()" disabled class="sec">POST /evaluation/evaluate_answers</button>
+<button id="btn-eval" onclick="evaluateAnswers()" disabled class="sec">POST /evaluate_answers</button>
 
 <hr/>
 
@@ -84,6 +84,8 @@ let activeAnswerIndex = null;
 let initialText = '';
 
 const NGROK = { 'ngrok-skip-browser-warning': 'true' };
+const M2_GENERATE_PATH = '/questions/generate';
+const M2_EVALUATE_PATH = '/evaluation/evaluate_answers';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function url(id)  { return document.getElementById(id).value.trim().replace(/\/+$/,''); }
@@ -126,7 +128,7 @@ async function playTTS(text) {
   try {
     const res = await fetch(`${m2}/stt/synthesize`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...NGROK },
       body: JSON.stringify({ text })
     });
 
@@ -283,10 +285,10 @@ async function runBypass() {
   document.getElementById('btn-bypass').disabled = true;
 
   log('⚠️ Running bypass mode: skipping resume upload and using mock profile.', 'warn');
-  log(`→ POST ${m2}/questions/generate`);
+  log(`→ POST ${m2}${M2_GENERATE_PATH}`);
 
   try {
-    const r = await fetch(`${m2}/questions/generate`, {
+    const r = await fetch(`${m2}${M2_GENERATE_PATH}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...NGROK },
       body: JSON.stringify(profileData),
@@ -303,7 +305,7 @@ async function runBypass() {
     renderQuestions();
 
   } catch (e) {
-    log(`❌ Bypass /questions/generate error: ${e.message}`, 'err');
+    log(`❌ Bypass ${M2_GENERATE_PATH} error: ${e.message}`, 'err');
   } finally {
     document.getElementById('btn-bypass').disabled = false;
   }
@@ -324,10 +326,10 @@ async function skipResumeParser() {
   document.getElementById('btn-skip-resume').disabled = true;
 
   log('⚠️ Skipping Module 1 resume parsing and using a mock candidate profile.', 'warn');
-  log(`→ POST ${m2}/questions/generate`);
+  log(`→ POST ${m2}${M2_GENERATE_PATH}`);
 
   try {
-    const r = await fetch(`${m2}/questions/generate`, {
+    const r = await fetch(`${m2}${M2_GENERATE_PATH}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...NGROK },
       body: JSON.stringify(profileData),
@@ -402,11 +404,11 @@ async function generateQuestions() {
     return log('❌ Profile JSON is invalid. Fix it and retry.', 'err');
   }
 
-  log(`→ POST ${m2}/questions/generate`);
+  log(`→ POST ${m2}${M2_GENERATE_PATH}`);
   document.getElementById('btn-gen').disabled = true;
 
   try {
-    const r = await fetch(`${m2}/questions/generate`, {
+    const r = await fetch(`${m2}${M2_GENERATE_PATH}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...NGROK },
       body: JSON.stringify(profile),
@@ -424,7 +426,7 @@ async function generateQuestions() {
     renderQuestions();
 
   } catch(e) {
-    log(`❌ Module 2 /questions/generate error: ${e.message}`, 'err');
+    log(`❌ Module 2 ${M2_GENERATE_PATH} error: ${e.message}`, 'err');
   } finally {
     document.getElementById('btn-gen').disabled = false;
   }
@@ -442,11 +444,11 @@ async function evaluateAnswers() {
   }));
 
   const payload = { session_id: sessionId, answers };
-  log(`→ POST ${m2}/evaluation/evaluate_answers`);
+  log(`→ POST ${m2}${M2_EVALUATE_PATH}`);
   document.getElementById('btn-eval').disabled = true;
 
   try {
-    const r = await fetch(`${m2}/evaluation/evaluate_answers`, {
+    const r = await fetch(`${m2}${M2_EVALUATE_PATH}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...NGROK },
       body: JSON.stringify(payload),
@@ -465,7 +467,7 @@ async function evaluateAnswers() {
     });
 
   } catch(e) {
-    log(`❌ Module 2 /evaluation/evaluate_answers error: ${e.message}`, 'err');
+    log(`❌ Module 2 ${M2_EVALUATE_PATH} error: ${e.message}`, 'err');
   } finally {
     document.getElementById('btn-eval').disabled = false;
   }

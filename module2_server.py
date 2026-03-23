@@ -32,14 +32,15 @@ Run:
 Swagger UI: http://localhost:8001/docs
 """
 
-import os, json, uuid, re
+import os, json, uuid, re, io
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from groq import Groq
+import azure.cognitiveservices.speech as speechsdk  # type: ignore[import-untyped]
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,11 @@ EVAL_MODEL      = "llama-3.3-70b-versatile"   # Call 2: answer evaluation
 TOTAL_QUESTIONS = 15                            # 6 easy + 5 medium + 4 hard
 
 groq_client = Groq(api_key=GROQ_API_KEY)
+
+# ── Azure TTS Config ─────────────────────────────────────────────────────────────
+AZURE_SPEECH_KEY    = os.getenv("AZURE_SPEECH_KEY", "")
+AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION", "centralindia")
+AZURE_TTS_VOICE     = os.getenv("DEFAULT_VOICE", "en-IN-ArjunNeural")
 
 # ── In-Memory Stores ────────────────────────────────────────────────────────────
 # verified_sessions: candidates who passed face verification
@@ -497,6 +503,76 @@ Badge rules:
         submitted_at   = submitted_at,
         results        = results,
     )
+
+
+# ── STT: Transcribe Audio ────────────────────────────────────────────────────────
+
+class SynthesizeRequest(BaseModel):
+    text: str
+    voice: Optional[str] = None  # override AZURE_TTS_VOICE if passed
+
+
+@app.post("/stt/transcribe")
+async def stt_transcribe(file: UploadFile = File(...)):
+    """
+    Accepts an audio file (webm, wav, mp3, m4a, ogg) and returns a JSON
+    transcription produced by Groq Whisper.
+    """
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Empty audio file")
+
+    # Groq accepts a file-like object; pass original filename so it knows the codec
+    fname = file.filename or "audio.webm"
+    try:
+        transcription = groq_client.audio.transcriptions.create(
+            model="whisper-large-v3",
+            file=(fname, io.BytesIO(audio_bytes)),
+            response_format="text",
+        )
+        return {"status": "success", "text": transcription.strip() if isinstance(transcription, str) else str(transcription)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Transcription error: {e}")
+
+
+# ── TTS: Synthesize Text ─────────────────────────────────────────────────────────
+
+@app.post("/stt/synthesize")
+def stt_synthesize(req: SynthesizeRequest):
+    """
+    Converts text to speech using Azure Cognitive Services and streams back
+    the audio as audio/wav.
+    """
+    if not AZURE_SPEECH_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="Azure Speech key not configured. Set AZURE_SPEECH_KEY env var."
+        )
+
+    voice  = req.voice or AZURE_TTS_VOICE
+    config = speechsdk.SpeechConfig(subscription=AZURE_SPEECH_KEY, region=AZURE_SPEECH_REGION)
+    config.speech_synthesis_voice_name = voice
+
+    # Synthesize into an in-memory stream (no speaker/file needed)
+    synth = speechsdk.SpeechSynthesizer(speech_config=config, audio_config=None)
+
+    result = synth.speak_text_async(req.text).get()
+
+    if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+        audio_data = result.audio_data
+        return StreamingResponse(
+            io.BytesIO(audio_data),
+            media_type="audio/wav",
+            headers={"Content-Disposition": "inline; filename=speech.wav"}
+        )
+    elif result.reason == speechsdk.ResultReason.Canceled:
+        details = speechsdk.SpeechSynthesisCancellationDetails(result)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Azure TTS canceled: {details.reason} — {details.error_details}"
+        )
+    else:
+        raise HTTPException(status_code=500, detail="Azure TTS synthesis failed.")
 
 
 # ── Health Check ────────────────────────────────────────────────────────────────

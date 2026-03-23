@@ -1,22 +1,66 @@
-# Virtual environments
+# ── Virtual environments ──────────────────────────────────────────────────────
 .venv/
 venv/
 env/
+ENV/
 
-# Python bytecode
+# ── Python bytecode ───────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyo
+*.pyd
 
-# Environment variables
+# ── Distribution / packaging ──────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+wheels/
+
+# ── Environment variables ─────────────────────────────────────────────────────
 .env
+.env.*
+!.env.example
 
-# Streamlit
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ── Streamlit ─────────────────────────────────────────────────────────────────
 .streamlit/
 
-# IDE settings
+# ── IDE & editors ─────────────────────────────────────────────────────────────
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-# System files
+# ── OS files ──────────────────────────────────────────────────────────────────
 .DS_Store
+Thumbs.db
+
+# ── Uploads / temp files ──────────────────────────────────────────────────────
+uploads/
+tmp/
+*.tmp
+
+# ── Ngrok ─────────────────────────────────────────────────────────────────────
+ngrok.yml
+ngrok
+
+# ── Jupyter ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── Type checking ─────────────────────────────────────────────────────────────
+.mypy_cache/
+.pytype/
