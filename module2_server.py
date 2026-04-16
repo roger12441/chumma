@@ -42,6 +42,10 @@ from pydantic import BaseModel
 from groq import Groq
 import azure.cognitiveservices.speech as speechsdk  # type: ignore[import-untyped]
 
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), "files"))
+from resume_parser import parse_resume
+
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 GROQ_API_KEY    = os.getenv("GROQ_API_KEY", "your_groq_api_key_here")
@@ -573,6 +577,13 @@ def stt_synthesize(req: SynthesizeRequest):
         )
     else:
         raise HTTPException(status_code=500, detail="Azure TTS synthesis failed.")
+
+
+# ── Resume Parser ─────────────────────────────────────────────────────────────
+
+@app.post("/upload_resume", response_model=CandidateProfile)
+async def upload_resume_endpoint(file: UploadFile = File(...)):
+    return await parse_resume(file)
 
 
 # ── Health Check ────────────────────────────────────────────────────────────────

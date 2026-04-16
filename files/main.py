@@ -43,6 +43,7 @@ from verification import router as verification_router
 from questions    import router as questions_router
 from evaluation   import router as evaluation_router
 from stt          import router as stt_router
+from resume_router import router as resume_router
 
 # ── App ──────────────────────────────────────────────────────────────────────────
 
@@ -77,6 +78,7 @@ app.include_router(verification_router)
 app.include_router(questions_router)
 app.include_router(evaluation_router)
 app.include_router(stt_router)
+app.include_router(resume_router)
 
 # ── Health check ──────────────────────────────────────────────────────────────────
 

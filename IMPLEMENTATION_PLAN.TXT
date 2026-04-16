@@ -1,0 +1,438 @@
+Now instead of using resume parser from another system and connect through I will give you some source code intergrate the resume parser to the ai interview system locally 
+
+FILE_LOADER 
+
+
+# import fitz  # PyMuPDF
+# from docx import Document
+# import tempfile
+# import pytesseract
+# from pdf2image import convert_from_path
+# import os
+
+
+# MIN_TEXT_THRESHOLD = 200  # If extracted text is too small → trigger OCR
+
+
+# async def extract_text(file):
+#     suffix = file.filename.split(".")[-1].lower()
+
+#     with tempfile.NamedTemporaryFile(delete=False, suffix=f".{suffix}") as tmp:
+#         tmp.write(await file.read())
+#         tmp_path = tmp.name
+
+#     text = ""
+
+#     # -----------------------------
+#     # PDF Extraction (Block-based)
+#     # -----------------------------
+#     if suffix == "pdf":
+#         try:
+#             doc = fitz.open(tmp_path)
+
+#             all_blocks = []
+
+#             for page in doc:
+#                 blocks = page.get_text("blocks")
+
+#                 # Sort blocks by vertical position (y0), then horizontal (x0)
+#                 blocks.sort(key=lambda b: (b[1], b[0]))
+
+#                 for block in blocks:
+#                     block_text = block[4].strip()
+#                     if block_text:
+#                         all_blocks.append(block_text)
+
+#             text = "\n".join(all_blocks)
+
+#         except Exception as e:
+#             print("PDF extraction error:", e)
+
+#         print("Block Extraction Text Length:", len(text))
+
+#         # -----------------------------
+#         # OCR Fallback (If Needed)
+#         # -----------------------------
+#         if len(text.strip()) < MIN_TEXT_THRESHOLD:
+#             print("Low text detected. Triggering OCR fallback...")
+
+#             try:
+#                 images = convert_from_path(tmp_path)
+#                 ocr_text = ""
+
+#                 for img in images:
+#                     ocr_text += pytesseract.image_to_string(img)
+
+#                 text = ocr_text
+
+#                 print("OCR Text Length:", len(text))
+
+#             except Exception as e:
+#                 print("OCR extraction failed:", e)
+
+#         return text
+
+
+#     # -----------------------------
+#     # DOCX Extraction
+#     # -----------------------------
+#     elif suffix == "docx":
+#         try:
+#             doc = Document(tmp_path)
+#             text = "\n".join([para.text for para in doc.paragraphs])
+#             print("DOCX Text Length:", len(text))
+#             return text
+#         except Exception as e:
+#             print("DOCX extraction error:", e)
+#             return ""
+
+#     else:
+#         return "Unsupported file format"
+
+# Version 2 with improved text cleaning and image resume support
+
+import fitz  # PyMuPDF
+from docx import Document
+import tempfile
+import pytesseract
+from pdf2image import convert_from_path
+from PIL import Image
+import re
+
+
+MIN_TEXT_THRESHOLD = 200
+
+
+def clean_text(text: str) -> str:
+    text = re.sub(r'\r', '', text)
+    text = re.sub(r'\n+', '\n', text)
+    return text.strip()
+
+
+async def extract_text(file):
+    suffix = file.filename.split(".")[-1].lower()
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{suffix}") as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    text = ""
+
+    # -----------------------------
+    # PDF Extraction (Block-based)
+    # -----------------------------
+    if suffix == "pdf":
+        try:
+            doc = fitz.open(tmp_path)
+            all_blocks = []
+
+            for page in doc:
+                blocks = page.get_text("blocks")
+                blocks.sort(key=lambda b: (b[1], b[0]))  # y0, x0 sorting
+
+                for block in blocks:
+                    block_text = block[4].strip()
+                    if block_text:
+                        all_blocks.append(block_text)
+
+            text = "\n".join(all_blocks)
+            text = clean_text(text)
+
+        except Exception as e:
+            print("PDF extraction error:", e)
+
+        print("Block Extraction Text Length:", len(text))
+
+        # OCR fallback
+        if len(text.strip()) < MIN_TEXT_THRESHOLD:
+            print("Low text detected. Triggering OCR fallback...")
+
+            try:
+                images = convert_from_path(tmp_path)
+                ocr_text = ""
+
+                for img in images:
+                    ocr_text += pytesseract.image_to_string(img)
+
+                text = clean_text(ocr_text)
+                print("OCR Text Length:", len(text))
+
+            except Exception as e:
+                print("OCR extraction failed:", e)
+
+        return text
+
+    # -----------------------------
+    # DOCX Extraction
+    # -----------------------------
+    elif suffix == "docx":
+        try:
+            doc = Document(tmp_path)
+            text = "\n".join([para.text for para in doc.paragraphs])
+            text = clean_text(text)
+            print("DOCX Text Length:", len(text))
+            return text
+        except Exception as e:
+            print("DOCX extraction error:", e)
+            return ""
+
+    # -----------------------------
+    # Image Resume Support
+    # -----------------------------
+    elif suffix in ["png", "jpg", "jpeg"]:
+        try:
+            img = Image.open(tmp_path)
+            text = pytesseract.image_to_string(img)
+            text = clean_text(text)
+            print("Image OCR Text Length:", len(text))
+            return text
+        except Exception as e:
+            print("Image OCR error:", e)
+            return ""
+
+    else:
+        return "" 
+
+RESUME_PARSER
+
+
+# MAJOR_KEYWORDS_MAP = {
+#     "skills": ["skill", "framework", "tools"],
+#     "experience": ["experience", "intern", "work"],
+#     "projects": ["project"],
+#     "education": ["education"],
+#     "summary": ["summary", "objective"],
+#     "certifications": ["certification", "award", "achievement"]
+# }
+
+# def classify_sections(sections):
+#     for section in sections:
+#         header = section["header"].lower()
+#         canonical_type = "other"
+#         confidence = 0.5
+#         level = "subsection"
+
+#         for key, keywords in MAJOR_KEYWORDS_MAP.items():
+#             if any(keyword in header for keyword in keywords):
+#                 canonical_type = key
+#                 confidence = 0.9
+#                 level = "main"
+#                 break
+
+#         # If high score but no major keyword → likely subsection
+#         if canonical_type == "other" and section.get("score", 0) >= 4:
+#             level = "main"
+#             confidence = 0.6
+
+#         section["canonical_type"] = canonical_type
+#         section["level"] = level
+#         section["confidence"] = confidence
+
+#     return sections
+
+# Version 2 with improved keyword mapping and confidence scoring
+MAJOR_KEYWORDS_MAP = {
+    "skills": ["skill", "framework", "tools"],
+    "experience": ["experience", "intern", "work"],
+    "projects": ["project"],
+    "education": ["education"],
+    "summary": ["summary", "objective"],
+    "certifications": ["certification", "award", "achievement"]
+}
+
+
+def classify_sections(sections):
+
+    structured = {
+        "executive_summary": "",
+        "skills": "",
+        "projects": "",
+        "experience": "",
+        "education": "",
+        "certifications": "",
+        "other": []
+    }
+
+    for section in sections:
+        header = section["header"].lower()
+        content = section.get("content", "").strip()
+
+        matched = False
+
+        for key, keywords in MAJOR_KEYWORDS_MAP.items():
+            if any(keyword in header for keyword in keywords):
+                if key == "summary":
+                    structured["executive_summary"] += content + "\n"
+                else:
+                    structured[key] += content + "\n"
+
+                matched = True
+                break
+
+        if not matched:
+            structured["other"].append(section)
+
+    return structured
+
+
+SECTION_CLASSIFIER 
+
+
+# MAJOR_KEYWORDS_MAP = {
+#     "skills": ["skill", "framework", "tools"],
+#     "experience": ["experience", "intern", "work"],
+#     "projects": ["project"],
+#     "education": ["education"],
+#     "summary": ["summary", "objective"],
+#     "certifications": ["certification", "award", "achievement"]
+# }
+
+# def classify_sections(sections):
+#     for section in sections:
+#         header = section["header"].lower()
+#         canonical_type = "other"
+#         confidence = 0.5
+#         level = "subsection"
+
+#         for key, keywords in MAJOR_KEYWORDS_MAP.items():
+#             if any(keyword in header for keyword in keywords):
+#                 canonical_type = key
+#                 confidence = 0.9
+#                 level = "main"
+#                 break
+
+#         # If high score but no major keyword → likely subsection
+#         if canonical_type == "other" and section.get("score", 0) >= 4:
+#             level = "main"
+#             confidence = 0.6
+
+#         section["canonical_type"] = canonical_type
+#         section["level"] = level
+#         section["confidence"] = confidence
+
+#     return sections
+
+# Version 2 with improved keyword mapping and confidence scoring
+MAJOR_KEYWORDS_MAP = {
+    "skills": ["skill", "framework", "tools"],
+    "experience": ["experience", "intern", "work"],
+    "projects": ["project"],
+    "education": ["education"],
+    "summary": ["summary", "objective"],
+    "certifications": ["certification", "award", "achievement"]
+}
+
+
+def classify_sections(sections):
+
+    structured = {
+        "executive_summary": "",
+        "skills": "",
+        "projects": "",
+        "experience": "",
+        "education": "",
+        "certifications": "",
+        "other": []
+    }
+
+    for section in sections:
+        header = section["header"].lower()
+        content = section.get("content", "").strip()
+
+        matched = False
+
+        for key, keywords in MAJOR_KEYWORDS_MAP.items():
+            if any(keyword in header for keyword in keywords):
+                if key == "summary":
+                    structured["executive_summary"] += content + "\n"
+                else:
+                    structured[key] += content + "\n"
+
+                matched = True
+                break
+
+        if not matched:
+            structured["other"].append(section)
+
+    return structured 
+
+
+SECTION_SEGMENTER 
+
+# MAJOR_KEYWORDS_MAP = {
+#     "skills": ["skill", "framework", "tools"],
+#     "experience": ["experience", "intern", "work"],
+#     "projects": ["project"],
+#     "education": ["education"],
+#     "summary": ["summary", "objective"],
+#     "certifications": ["certification", "award", "achievement"]
+# }
+
+# def classify_sections(sections):
+#     for section in sections:
+#         header = section["header"].lower()
+#         canonical_type = "other"
+#         confidence = 0.5
+#         level = "subsection"
+
+#         for key, keywords in MAJOR_KEYWORDS_MAP.items():
+#             if any(keyword in header for keyword in keywords):
+#                 canonical_type = key
+#                 confidence = 0.9
+#                 level = "main"
+#                 break
+
+#         # If high score but no major keyword → likely subsection
+#         if canonical_type == "other" and section.get("score", 0) >= 4:
+#             level = "main"
+#             confidence = 0.6
+
+#         section["canonical_type"] = canonical_type
+#         section["level"] = level
+#         section["confidence"] = confidence
+
+#     return sections
+
+# Version 2 with improved keyword mapping and confidence scoring
+MAJOR_KEYWORDS_MAP = {
+    "skills": ["skill", "framework", "tools"],
+    "experience": ["experience", "intern", "work"],
+    "projects": ["project"],
+    "education": ["education"],
+    "summary": ["summary", "objective"],
+    "certifications": ["certification", "award", "achievement"]
+}
+
+
+def classify_sections(sections):
+
+    structured = {
+        "executive_summary": "",
+        "skills": "",
+        "projects": "",
+        "experience": "",
+        "education": "",
+        "certifications": "",
+        "other": []
+    }
+
+    for section in sections:
+        header = section["header"].lower()
+        content = section.get("content", "").strip()
+
+        matched = False
+
+        for key, keywords in MAJOR_KEYWORDS_MAP.items():
+            if any(keyword in header for keyword in keywords):
+                if key == "summary":
+                    structured["executive_summary"] += content + "\n"
+                else:
+                    structured[key] += content + "\n"
+
+                matched = True
+                break
+
+        if not matched:
+            structured["other"].append(section)
+
+    return structured

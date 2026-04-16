@@ -32,16 +32,14 @@
 
 <!-- ── CONFIG ── -->
 <h2>1. Config</h2>
-<label>Module 1 URL (resume parser)</label>
-<input id="m1url" placeholder="https://xxxx.ngrok-free.app" />
-<label>Module 2 URL (interview engine)</label>
+<label>API URL (Interview Engine & Resume Parser locally)</label>
 <input id="m2url" placeholder="https://xxxx.ngrok-free.app" />
 <button id="btn-bypass" onclick="runBypass()" class="sec">Run Bypass Test</button>
 
 <hr/>
 
 <!-- ── STEP 1: UPLOAD RESUME ── -->
-<h2>2. Upload Resume → Module 1</h2>
+<h2>2. Upload Resume</h2>
 <label>Resume file (PDF / DOCX)</label>
 <input type="file" id="rfile" accept=".pdf,.docx,.doc" />
 <button id="btn-upload" onclick="uploadResume()">POST /upload_resume</button>
@@ -325,7 +323,7 @@ async function skipResumeParser() {
   document.getElementById('profile-json').value = JSON.stringify(profileData, null, 2);
   document.getElementById('btn-skip-resume').disabled = true;
 
-  log('⚠️ Skipping Module 1 resume parsing and using a mock candidate profile.', 'warn');
+  log('⚠️ Skipping resume parsing and using a mock candidate profile.', 'warn');
   log(`→ POST ${m2}${M2_GENERATE_PATH}`);
 
   try {
@@ -357,10 +355,10 @@ async function uploadResume() {
   const rfile = document.getElementById('rfile').files[0];
   if (!rfile) return log('❌ No resume file selected.', 'err');
 
-  const m1 = url('m1url');
-  if (!m1) return log('❌ Module 1 URL is empty.', 'err');
+  const m2 = url('m2url');
+  if (!m2) return log('❌ API URL is empty.', 'err');
 
-  log(`→ POST ${m1}/upload_resume`);
+  log(`→ POST ${m2}/upload_resume`);
   document.getElementById('btn-upload').disabled = true;
 
   try {
@@ -368,7 +366,7 @@ async function uploadResume() {
     form.append("file", rfile);
 
     // Note: No Content-Type header for FormData — browser sets it with boundary
-    const r = await fetch(`${m1}/upload_resume`, {
+    const r = await fetch(`${m2}/upload_resume`, {
       method: 'POST',
       headers: { ...NGROK },
       body: form,
@@ -386,7 +384,7 @@ async function uploadResume() {
     document.getElementById('btn-gen').disabled = false;
 
   } catch(e) {
-    log(`❌ Module 1 error: ${e.message}`, 'err');
+    log(`❌ Resume upload error: ${e.message}`, 'err');
   } finally {
     document.getElementById('btn-upload').disabled = false;
   }

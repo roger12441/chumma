@@ -1052,16 +1052,11 @@
           <label>🪪 Face Verification URL (Vercel)</label>
           <input type="text" id="vercel-url" placeholder="https://your-project.vercel.app" />
         </div>
-        <div class="grid2">
           <div class="field">
-            <label>Module 1 — Resume Parser</label>
-            <input type="text" id="m1url" placeholder="https://xxxx.ngrok-free.app" />
+            <label>API URL (Interview Engine & Resume Parser locally)</label>
+            <input type="text" id="m2url" placeholder="https://xxxx.ngrok-free.app" value="http://localhost:8001" />
           </div>
-          <div class="field">
-            <label>Module 2 — Interview Engine</label>
-            <input type="text" id="m2url" placeholder="https://xxxx.ngrok-free.app" />
-          </div>
-        </div>
+
 
         <hr />
 
@@ -1463,8 +1458,7 @@
     // STATE
     // Exactly matches file 1's state variables.
     // ═══════════════════════════════════════════════════════
-    let M1 = '';          // Module 1 URL (resume parser)
-    let M2 = '';          // Module 2 URL (interview engine)
+    let M2 = '';          // Module URL (interview engine & resume parser)
     let VERCEL = '';          // Vercel face-verify URL
     let sessionId = null;    // from /generate_questions response
     let questions = [];      // array of question objects
@@ -1530,7 +1524,7 @@
 
       toast('Test Mode: Bypassing Face ID & Resume Upload', 3000);
       log(`Config saved — Calling M2 directly: ${M2}`);
-      log("Skipping Vercel and M1 for STT testing purposes.", "l-warn");
+      log("Skipping Vercel for testing purposes.", "l-warn");
 
       go('loading');
       document.getElementById('load-title').textContent = 'Generating questions with Groq AI...';
@@ -1636,7 +1630,7 @@
     // PAGE 3 — UPLOAD RESUME → MODULE 1 → MODULE 2
     //
     // EXACT file 1 logic:
-    //   Step A: POST ${M1}/upload_resume
+    //   Step A: POST ${M2}/upload_resume
     //           FormData field: "file"
     //           Response: profileData JSON (candidate_name, skills, …)
     //
@@ -1660,9 +1654,9 @@
         const form = new FormData();
         form.append('file', rfile);          // ← "file", not "resume"
 
-        log(`→ POST ${M1}/upload_resume`);
+        log(`→ POST ${M2}/upload_resume`);
 
-        const r1 = await fetch(`${M1}/upload_resume`, {
+        const r1 = await fetch(`${M2}/upload_resume`, {
           method: 'POST',
           headers: { ...NGROK },             // ← no Content-Type, just ngrok header
           body: form,
@@ -1670,8 +1664,8 @@
 
         const raw1 = await r1.text();
         if (!r1.ok) {
-          log(`❌ M1 ${r1.status}: ${raw1.slice(0, 200)}`, 'l-err');
-          throw new Error(`Module 1 (${r1.status}): ${raw1.slice(0, 120)}`);
+          log(`❌ Resume upload ${r1.status}: ${raw1.slice(0, 200)}`, 'l-err');
+          throw new Error(`Resume upload (${r1.status}): ${raw1.slice(0, 120)}`);
         }
 
         profileData = JSON.parse(raw1);
@@ -2051,9 +2045,9 @@
     // RESET
     // ═══════════════════════════════════════════════════════
     function resetAll() {
-      M1 = ''; M2 = ''; VERCEL = '';
+      M2 = ''; VERCEL = '';
       sessionId = null; questions = []; answers = []; profileData = null; currentIdx = 0;
-      document.getElementById('m1url').value = '';
+
       document.getElementById('m2url').value = '';
       document.getElementById('vercel-url').value = '';
       document.getElementById('approved-strip').classList.remove('show');
