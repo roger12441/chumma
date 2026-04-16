@@ -16,7 +16,7 @@
 
 async function generateQuestions(){
 
-  const res = await fetch("http://localhost:8001/generate_questions",{
+  const res = await fetch("http://localhost:8001/questions/generate",{
     method:"POST",
     headers:{
       "Content-Type":"application/json"

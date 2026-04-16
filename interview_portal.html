@@ -14,7 +14,7 @@
     *::after {
       box-sizing: border-box;
       margin: 0;
-      padding: 0
+      padding:   0
     }
 
     :root {
@@ -1526,7 +1526,7 @@
     // ═══════════════════════════════════════════════════════
     document.getElementById('btn-start').addEventListener('click', async () => {
       const m2 = cleanUrl(document.getElementById('m2url').value);
-      M2 = m2 || "http://localhost:8000";
+      M2 = m2 || "http://localhost:8001";
 
       toast('Test Mode: Bypassing Face ID & Resume Upload', 3000);
       log(`Config saved — Calling M2 directly: ${M2}`);

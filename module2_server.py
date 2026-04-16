@@ -199,7 +199,7 @@ def safe_json(raw: str) -> dict | list:
 
 # ── Endpoint 0: Create Verified Session (called after face-verification passes) ──
 
-@app.post("/create_session", response_model=VerifySessionResponse)
+@app.post("/verification/create_session", response_model=VerifySessionResponse)
 def create_session(req: VerifySessionRequest, request: Request):
     """
     Called by the portal (or directly by the Vercel face-verification app)
@@ -239,7 +239,7 @@ def create_session(req: VerifySessionRequest, request: Request):
 
 # ── Endpoint 1: Generate Questions ──────────────────────────────────────────────
 
-@app.post("/generate_questions", response_model=QuestionsResponse)
+@app.post("/questions/generate", response_model=QuestionsResponse)
 def generate_questions(profile: CandidateProfile):
     """
     Groq Call 1.
@@ -370,7 +370,7 @@ def get_questions(session_id: str):
 
 # ── Endpoint 3: Evaluate Answers ────────────────────────────────────────────────
 
-@app.post("/evaluate_answers", response_model=EvaluateResponse)
+@app.post("/evaluation/evaluate_answers", response_model=EvaluateResponse)
 def evaluate_answers(req: EvaluateRequest):
     """
     Groq Call 2.
