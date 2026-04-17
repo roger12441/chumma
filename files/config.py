@@ -39,3 +39,21 @@ ALLOWED_ORIGINS: list[str] = (
 AZURE_SPEECH_KEY = os.getenv("AZURE_SPEECH_KEY", "")
 AZURE_SPEECH_REGION = os.getenv("AZURE_SPEECH_REGION", "centralindia")
 DEFAULT_VOICE = os.getenv("DEFAULT_VOICE", "en-IN-ArjunNeural")
+
+# ── Database ────────────────────────────────────────────────────────────────────
+# DATABASE_URL is the single source of truth consumed by database.py (psycopg2).
+# sslmode=require is mandatory for Supabase connections.
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:your_db_password@db.your-project-ref.supabase.co:5432/postgres?sslmode=require",
+)
+# Ensure sslmode is always present (guards against .env entries missing the param)
+if "sslmode" not in DATABASE_URL:
+    DATABASE_URL += "?sslmode=require"
+
+DB_HOST     = os.getenv("DB_HOST",     "db.your-project-ref.supabase.co")
+DB_PORT     = os.getenv("DB_PORT",     "5432")
+DB_NAME     = os.getenv("DB_NAME",     "postgres")
+DB_USER     = os.getenv("DB_USER",     "postgres")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "your_db_password")
+DB_SSLMODE  = os.getenv("DB_SSLMODE",  "require")

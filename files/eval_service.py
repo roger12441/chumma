@@ -16,6 +16,7 @@ from schemas import EvaluateRequest, EvaluateResponse, QuestionResult
 from config import EVAL_MODEL
 from store import SESSION_STORE
 from llm import llm_call, safe_json
+import database as db
 
 
 # ── Prompt templates ─────────────────────────────────────────────────────────────
@@ -133,9 +134,29 @@ def evaluate_candidate(req: EvaluateRequest) -> EvaluateResponse:
     candidate_name = req.candidate_name or session.get("candidate_name") or "Candidate"
     submitted_at   = datetime.now(timezone.utc).isoformat()
 
-    # ── Mark session as submitted ──────────────────────────────────────────────
+    # ── Mark session as submitted (in-memory) ─────────────────────────────────
     session["submitted"]    = True
     session["submitted_at"] = submitted_at
+
+    # ── Persist to Supabase ───────────────────────────────────────────────────
+    ordinal_to_uuid = session.get("ordinal_to_uuid", {})
+    db.save_answer_evaluations(
+        session_id      = req.session_id,
+        results         = results,
+        ordinal_to_uuid = ordinal_to_uuid,
+    )
+    db.save_interview_result(
+        session_id  = req.session_id,
+        total_score = total_score,
+        max_score   = max_score,
+        percentage  = percentage,
+        grade       = grade,
+        summary     = summary_text,
+    )
+    db.mark_session_submitted(
+        session_id   = req.session_id,
+        submitted_at = submitted_at,
+    )
 
     return EvaluateResponse(
         candidate_name = candidate_name,

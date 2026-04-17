@@ -17,6 +17,7 @@ from config import QUESTION_MODEL
 from store import VERIFIED_SESSIONS, SESSION_STORE
 from llm import llm_call, safe_json
 from question_bank import get_fallback_questions
+import database as db
 
 
 # ── Prompt templates ─────────────────────────────────────────────────────────────
@@ -141,17 +142,49 @@ def create_interview_session(profile: CandidateProfile) -> QuestionsResponse:
     print(f"🔖 Session for '{candidate_name}' — question_source: {question_source}")
 
     # ── Persist session ───────────────────────────────────────────────────────
-    session_id = str(uuid.uuid4())
+    session_id     = str(uuid.uuid4())
+    created_at     = datetime.now(timezone.utc).isoformat()
+    ideal_answers_map = {a["id"]: a.get("ideal_answer", "") for a in raw_ideal_answers}
+
     SESSION_STORE[session_id] = {
         "candidate_name"  : candidate_name,
         "face_verified"   : face_verified,
         "questions"       : questions,
-        "ideal_answers"   : {a["id"]: a.get("ideal_answer", "") for a in raw_ideal_answers},
-        "question_source" : question_source,    # "llm" or "fallback_bank"
-        "created_at"      : datetime.now(timezone.utc).isoformat(),
+        "ideal_answers"   : ideal_answers_map,
+        "ordinal_to_uuid" : {},           # populated after DB write below
+        "question_source" : question_source,
+        "created_at"      : created_at,
         "submitted"       : False,
         "submitted_at"    : None,
+        # store profile for DB persistence reference
+        "_profile"        : profile,
     }
+
+    # ── Persist to Supabase ───────────────────────────────────────────────────
+    db.save_interview_session(
+        session_id     = session_id,
+        candidate_name = candidate_name,
+        face_verified  = face_verified,
+        origin_url     = getattr(profile, "vercel_origin", None),
+        created_at     = created_at,
+    )
+    db.save_candidate_profile(
+        session_id            = session_id,
+        skills                = profile.skills or "",
+        projects              = profile.projects or "",
+        experience            = profile.experience or "",
+        education             = profile.education or "",
+        certifications        = profile.certifications or "",
+        speech_transcript     = profile.speech_transcript or "",
+        additional_information= profile.Additional_Information or [],
+    )
+    ordinal_to_uuid = db.save_questions_and_ideal_answers(
+        session_id    = session_id,
+        questions     = questions,
+        ideal_answers = ideal_answers_map,
+    )
+    # Store the UUID mapping in-memory so evaluations can resolve it
+    SESSION_STORE[session_id]["ordinal_to_uuid"] = ordinal_to_uuid
 
     return QuestionsResponse(
         session_id      = session_id,
