@@ -48,11 +48,12 @@ class Question(BaseModel):
 
 
 class QuestionsResponse(BaseModel):
-    session_id:     str
-    candidate_name: Optional[str]
-    face_verified:  bool
-    total:          int
-    questions:      List[Question]
+    session_id:       str
+    candidate_name:   Optional[str]
+    face_verified:    bool
+    total:            int
+    questions:        List[Question]
+    question_source:  Optional[str] = "llm"   # "llm" or "fallback_bank"
 
 
 # ── Answer evaluation ────────────────────────────────────────────────────────────

@@ -319,22 +319,36 @@ Rules:
 - Ideal answers should be concise reference answers (2-4 sentences)
 """
 
-    raw = llm_call(system_prompt, user_prompt, QUESTION_MODEL, max_tokens=3000)
-    data = safe_json(raw)
+    MAX_RETRIES = 3
+    questions = []
+    raw_ideal_answers = []
+    
+    for attempt in range(MAX_RETRIES):
+        try:
+            raw = llm_call(system_prompt, user_prompt, QUESTION_MODEL, max_tokens=3000)
+            data = safe_json(raw)
 
-    raw_questions     = data.get("questions", [])
-    raw_ideal_answers = data.get("ideal_answers", [])
+            raw_questions     = data.get("questions", [])
+            raw_ideal_answers = data.get("ideal_answers", [])
 
-    # Build validated question list
-    questions = [
-        Question(
-            id         = q["id"],
-            difficulty = q.get("difficulty", "medium"),
-            category   = q.get("category", "general"),
-            question   = q["question"]
-        )
-        for q in raw_questions
-    ]
+            if not raw_questions:
+                raise ValueError("LLM returned no questions.")
+
+            # Build validated question list
+            questions = [
+                Question(
+                    id         = q["id"],
+                    difficulty = q.get("difficulty", "medium"),
+                    category   = q.get("category", "general"),
+                    question   = q["question"]
+                )
+                for q in raw_questions
+            ]
+            break
+        except Exception as e:
+            if attempt == MAX_RETRIES - 1:
+                raise HTTPException(status_code=502, detail=f"LLM failed after {MAX_RETRIES} attempts: {e}")
+            print(f"Groq question generation failed (attempt {attempt + 1}/{MAX_RETRIES}): {e}. Retrying...")
 
     # Store session
     session_id = str(uuid.uuid4())

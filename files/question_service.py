@@ -16,6 +16,7 @@ from schemas import CandidateProfile, Question, QuestionsResponse
 from config import QUESTION_MODEL
 from store import VERIFIED_SESSIONS, SESSION_STORE
 from llm import llm_call, safe_json
+from question_bank import get_fallback_questions
 
 
 # ── Prompt templates ─────────────────────────────────────────────────────────────
@@ -89,46 +90,76 @@ def create_interview_session(profile: CandidateProfile) -> QuestionsResponse:
     # ── Build profile summary for the prompt ──────────────────────────────────
     profile_summary = _build_profile_summary(candidate_name, profile)
 
-    # ── Call Groq ─────────────────────────────────────────────────────────────
+    # ── Call Groq with Retry ──────────────────────────────────────────────────
     user_prompt = _USER_PROMPT_TEMPLATE.format(profile_summary=profile_summary)
-    raw  = llm_call(_SYSTEM_PROMPT, user_prompt, QUESTION_MODEL, max_tokens=3000)
-    data = safe_json(raw)
+    
+    MAX_RETRIES = 5
+    questions = []
+    raw_ideal_answers = []
+    question_source = "llm"          # tracks origin: "llm" or "fallback_bank"
+    
+    for attempt in range(MAX_RETRIES):
+        try:
+            raw  = llm_call(_SYSTEM_PROMPT, user_prompt, QUESTION_MODEL, max_tokens=3000)
+            data = safe_json(raw)
 
-    raw_questions     = data.get("questions", [])
-    raw_ideal_answers = data.get("ideal_answers", [])
+            raw_questions     = data.get("questions", [])
+            raw_ideal_answers = data.get("ideal_answers", [])
 
-    if not raw_questions:
-        raise HTTPException(status_code=502, detail="LLM returned no questions.")
+            if not raw_questions:
+                raise ValueError("LLM returned no questions.")
 
-    # ── Validate + coerce question objects ────────────────────────────────────
-    questions = [
-        Question(
-            id         = q["id"],
-            difficulty = q.get("difficulty", "medium"),
-            category   = q.get("category", "general"),
-            question   = q["question"],
-        )
-        for q in raw_questions
-    ]
+            # ── Validate + coerce question objects ────────────────────────────────────
+            questions = [
+                Question(
+                    id         = q["id"],
+                    difficulty = q.get("difficulty", "medium"),
+                    category   = q.get("category", "general"),
+                    question   = q["question"],
+                )
+                for q in raw_questions
+            ]
+            
+            # successfully parsed and structured questions
+            print(f"✅ Questions generated from LLM on attempt {attempt + 1}/{MAX_RETRIES} for '{candidate_name}'.")
+            break
+            
+        except Exception as e:
+            if attempt == MAX_RETRIES - 1:
+                # ── FALLBACK: LLM exhausted → use predefined question bank ────────
+                print(
+                    f"⚠️  LLM failed after {MAX_RETRIES} attempts. "
+                    f"Activating fallback question bank for '{candidate_name}'."
+                )
+                questions = get_fallback_questions(profile)
+                raw_ideal_answers = []     # no ideal answers from the bank
+                question_source = "fallback_bank"
+                print(f"📦 Questions retrieved from FALLBACK BANK for '{candidate_name}'. Total: {len(questions)}")
+            else:
+                print(f"Groq question generation failed (attempt {attempt + 1}/{MAX_RETRIES}): {e}. Retrying...")
+
+    print(f"🔖 Session for '{candidate_name}' — question_source: {question_source}")
 
     # ── Persist session ───────────────────────────────────────────────────────
     session_id = str(uuid.uuid4())
     SESSION_STORE[session_id] = {
-        "candidate_name" : candidate_name,
-        "face_verified"  : face_verified,
-        "questions"      : questions,
-        "ideal_answers"  : {a["id"]: a.get("ideal_answer", "") for a in raw_ideal_answers},
-        "created_at"     : datetime.now(timezone.utc).isoformat(),
-        "submitted"      : False,
-        "submitted_at"   : None,
+        "candidate_name"  : candidate_name,
+        "face_verified"   : face_verified,
+        "questions"       : questions,
+        "ideal_answers"   : {a["id"]: a.get("ideal_answer", "") for a in raw_ideal_answers},
+        "question_source" : question_source,    # "llm" or "fallback_bank"
+        "created_at"      : datetime.now(timezone.utc).isoformat(),
+        "submitted"       : False,
+        "submitted_at"    : None,
     }
 
     return QuestionsResponse(
-        session_id     = session_id,
-        candidate_name = candidate_name,
-        face_verified  = face_verified,
-        total          = len(questions),
-        questions      = questions,
+        session_id      = session_id,
+        candidate_name  = candidate_name,
+        face_verified   = face_verified,
+        total           = len(questions),
+        questions       = questions,
+        question_source = question_source,
     )
 
 
@@ -139,11 +170,12 @@ def fetch_session_questions(session_id: str) -> QuestionsResponse:
         raise HTTPException(status_code=404, detail="Session not found.")
 
     return QuestionsResponse(
-        session_id     = session_id,
-        candidate_name = session["candidate_name"],
-        face_verified  = session.get("face_verified", False),
-        total          = len(session["questions"]),
-        questions      = session["questions"],
+        session_id      = session_id,
+        candidate_name  = session["candidate_name"],
+        face_verified   = session.get("face_verified", False),
+        total           = len(session["questions"]),
+        questions       = session["questions"],
+        question_source = session.get("question_source", "llm"),
     )
 
 

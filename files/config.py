@@ -2,19 +2,22 @@
 core/config.py
 ==============
 Central configuration — reads from environment variables.
-All other modules import from here; nothing hardcodes env vars directly.
+Supports .env files for local development.
 """
 
 import os
+from dotenv import load_dotenv
 from groq import Groq
 
+# Load environment variables from .env file if it exists
+load_dotenv()
+
 # ── Groq ────────────────────────────────────────────────────────────────────────
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     raise RuntimeError(
-        "GROQ_API_KEY environment variable is not set. "
-        "Export it before starting the server:\n"
-        "  export GROQ_API_KEY=your_key_here"
+        "GROQ_API_KEY not found in environment variables or .env file. "
+        "Please ensure it is set correctly."
     )
 
 groq_client = Groq(api_key=GROQ_API_KEY)

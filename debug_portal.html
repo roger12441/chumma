@@ -298,8 +298,9 @@ async function runBypass() {
     const data = JSON.parse(text);
     sessionId = data.session_id;
     questions = data.questions;
+    const src = data.question_source === 'fallback_bank' ? '📦 Question Bank' : '🤖 LLM';
 
-    log(`✅ ${questions.length} questions generated in bypass mode. Session: ${sessionId}`, 'ok');
+    log(`✅ ${questions.length} questions generated in bypass mode. Source: ${src} | Session: ${sessionId}`, 'ok');
     renderQuestions();
 
   } catch (e) {
@@ -339,8 +340,9 @@ async function skipResumeParser() {
     const data = JSON.parse(text);
     sessionId = data.session_id;
     questions = data.questions;
+    const src = data.question_source === 'fallback_bank' ? '📦 Question Bank' : '🤖 LLM';
 
-    log(`✅ ${questions.length} interview questions generated from bypass profile. Session: ${sessionId}`, 'ok');
+    log(`✅ ${questions.length} interview questions generated from bypass profile. Source: ${src} | Session: ${sessionId}`, 'ok');
     renderQuestions();
 
   } catch (e) {
@@ -418,8 +420,9 @@ async function generateQuestions() {
     const data = JSON.parse(text);
     sessionId = data.session_id;
     questions = data.questions;
+    const src = data.question_source === 'fallback_bank' ? '📦 Question Bank' : '🤖 LLM';
 
-    log(`✅ ${questions.length} questions generated. Session: ${sessionId}`, 'ok');
+    log(`✅ ${questions.length} questions generated. Source: ${src} | Session: ${sessionId}`, 'ok');
 
     renderQuestions();
 
