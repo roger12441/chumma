@@ -31,8 +31,10 @@ Module map
     evaluation.py              ← POST /evaluation/evaluate_answers
 """
 
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 # Config must be imported first — it validates GROQ_API_KEY at startup
 from config import ALLOWED_ORIGINS
@@ -44,6 +46,9 @@ from questions    import router as questions_router
 from evaluation   import router as evaluation_router
 from stt          import router as stt_router
 from resume_router import router as resume_router
+
+# Path to the project root (one level up from files/)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # ── App ──────────────────────────────────────────────────────────────────────────
 
@@ -93,6 +98,15 @@ def health():
         "cors_origins"     : ALLOWED_ORIGINS,
         "vercel_mode"      : ALLOWED_ORIGINS != ["*"],
     }
+
+
+# ── Debug Portal ──────────────────────────────────────────────────────────────────
+
+@app.get("/debug", tags=["Portal"], include_in_schema=False)
+def debug_portal():
+    """Serve the debug portal HTML directly from FastAPI."""
+    html_path = PROJECT_ROOT / "debug_portal.html"
+    return FileResponse(html_path, media_type="text/html")
 
 
 # ── Dev runner ────────────────────────────────────────────────────────────────────

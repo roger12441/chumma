@@ -32,8 +32,8 @@
 
 <!-- ── CONFIG ── -->
 <h2>1. Config</h2>
-<label>API URL (Interview Engine & Resume Parser locally)</label>
-<input id="m2url" placeholder="https://xxxx.ngrok-free.app" />
+<label>API URL (FastAPI backend — localhost)</label>
+<input id="m2url" value="http://localhost:8001" readonly style="opacity:0.7;cursor:default;" />
 <button id="btn-bypass" onclick="runBypass()" class="sec">Run Bypass Test</button>
 
 <hr/>
@@ -81,7 +81,7 @@ let liveTranInterval = null;
 let activeAnswerIndex = null;
 let initialText = '';
 
-const NGROK = { 'ngrok-skip-browser-warning': 'true' };
+const API_BASE = 'http://localhost:8001';
 const M2_GENERATE_PATH = '/questions/generate';
 const M2_EVALUATE_PATH = '/evaluation/evaluate_answers';
 
@@ -126,7 +126,7 @@ async function playTTS(text) {
   try {
     const res = await fetch(`${m2}/stt/synthesize`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...NGROK },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text })
     });
 
@@ -178,7 +178,6 @@ async function transcribeCurrentBuffer() {
   try {
     const response = await fetch(`${m2}/stt/transcribe`, {
       method: 'POST',
-      headers: { ...NGROK },
       body: formData
     });
 
@@ -288,7 +287,7 @@ async function runBypass() {
   try {
     const r = await fetch(`${m2}${M2_GENERATE_PATH}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...NGROK },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(profileData),
     });
 
@@ -330,7 +329,7 @@ async function skipResumeParser() {
   try {
     const r = await fetch(`${m2}${M2_GENERATE_PATH}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...NGROK },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(profileData),
     });
 
@@ -370,7 +369,6 @@ async function uploadResume() {
     // Note: No Content-Type header for FormData — browser sets it with boundary
     const r = await fetch(`${m2}/upload_resume`, {
       method: 'POST',
-      headers: { ...NGROK },
       body: form,
     });
 
@@ -410,7 +408,7 @@ async function generateQuestions() {
   try {
     const r = await fetch(`${m2}${M2_GENERATE_PATH}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...NGROK },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(profile),
     });
 
@@ -451,7 +449,7 @@ async function evaluateAnswers() {
   try {
     const r = await fetch(`${m2}${M2_EVALUATE_PATH}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...NGROK },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
