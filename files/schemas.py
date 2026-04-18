@@ -34,6 +34,8 @@ class CandidateProfile(BaseModel):
     certifications:         Optional[str]  = ""
     Additional_Information: Optional[list] = []
     speech_transcript:      Optional[str]  = ""
+    # Tracks the interview session (generated on resume upload)
+    session_id:             Optional[str]  = None
     # Portal passes this after face-verification completes
     verify_token:           Optional[str]  = None
 

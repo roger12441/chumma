@@ -64,7 +64,9 @@ def save_interview_session(
                     INSERT INTO interview_sessions
                         (id, candidate_name, face_verified, origin_url, created_at, submitted, submitted_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (id) DO NOTHING
+                    ON CONFLICT (id) DO UPDATE SET
+                        candidate_name = EXCLUDED.candidate_name,
+                        face_verified  = EXCLUDED.face_verified
                     """,
                     (
                         session_id,
@@ -102,7 +104,14 @@ def save_candidate_profile(
                         (session_id, skills, projects, experience, education,
                          certifications, speech_transcript, additional_information)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (session_id) DO NOTHING
+                    ON CONFLICT (session_id) DO UPDATE SET
+                        skills                = EXCLUDED.skills,
+                        projects              = EXCLUDED.projects,
+                        experience            = EXCLUDED.experience,
+                        education             = EXCLUDED.education,
+                        certifications        = EXCLUDED.certifications,
+                        speech_transcript     = EXCLUDED.speech_transcript,
+                        additional_information= EXCLUDED.additional_information
                     """,
                     (
                         session_id,

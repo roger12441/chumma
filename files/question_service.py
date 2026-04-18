@@ -142,7 +142,7 @@ def create_interview_session(profile: CandidateProfile) -> QuestionsResponse:
     print(f"🔖 Session for '{candidate_name}' — question_source: {question_source}")
 
     # ── Persist session ───────────────────────────────────────────────────────
-    session_id     = str(uuid.uuid4())
+    session_id     = profile.session_id or str(uuid.uuid4())
     created_at     = datetime.now(timezone.utc).isoformat()
     ideal_answers_map = {a["id"]: a.get("ideal_answer", "") for a in raw_ideal_answers}
 
